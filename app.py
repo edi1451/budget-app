@@ -69,7 +69,7 @@ st.divider()
 # סינון הנתונים לפי החודש הנבחר בלבד
 df_current_month = df[df["חודש"] == selected_month]
 
-st.subheader(:bar_chart := f"📊 סיכום חודשי עבור {selected_month}")
+st.subheader(f"📊 סיכום חודשי עבור {selected_month}")
 
 col_left, col_right = st.columns(2)
 
@@ -106,7 +106,6 @@ if not df_current_month.empty:
     
     if row_to_delete:
         if st.button("מחק את התנועה הנבחרת"):
-            # מחיקת השורה הספציפית ששייכת לחודש הנבחר ולתיאור הנבחר
             df = df[~((df["חודש"] == selected_month) & (df["תיאור"] == row_to_delete))]
             df.to_csv(DATA_FILE, index=False)
             st.success(f"התנועה '{row_to_delete}' נמחקה בהצלחה מ-{selected_month}!")
@@ -116,5 +115,3 @@ if st.button("איפוס כל הנתונים במערכת"):
     if os.path.exists(DATA_FILE):
         os.remove(DATA_FILE)
     st.rerun()
-
-     
