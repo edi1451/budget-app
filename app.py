@@ -26,13 +26,15 @@ def load_data():
 
 df = load_data()
 
-# פונקציית צביעה לשורות בטבלה
+# פונקציית צביעה מדויקת לפי סוג התנועה
 def color_rows(row):
-    if row["סוג"] == "הוצאה קבועה":
+    # בדיקה האם עמודת 'סוג' קיימת בשורה
+    trans_type = row.get("סוג", "")
+    if trans_type == "הוצאה קבועה":
         return ['color: #d9534f; font-weight: bold'] * len(row)  # אדום
-    elif row["סוג"] == "הוצאה משתנה":
+    elif trans_type == "הוצאה משתנה":
         return ['color: #5cb85c; font-weight: bold'] * len(row)  # ירוק
-    elif row["סוג"] == "הכנסה":
+    elif trans_type == "הכנסה":
         return ['color: #0275d8; font-weight: bold'] * len(row)  # כחול
     return [''] * len(row)
 
@@ -68,8 +70,9 @@ with col_right:
     st.markdown("### 📥 הכנסות")
     df_income = df[df["סוג"] == "הכנסה"]
     if not df_income.empty:
-        styled_income = df_income[["תיאור", "סכום"]].style.apply(color_rows, axis=1)
-        st.dataframe(styled_income, use_container_width=True, hide_index=True)
+        # שומרים את עמודת הסוג בשקט כדי שהצביעה תזהה אותה, ואז מציגים
+        styled_income = df_income.style.apply(color_rows, axis=1)
+        st.dataframe(styled_income, use_container_width=True, hide_index=True, column_config={"סוג": None})
         total_income = df_income["סכום"].sum()
         st.metric("סך הכל הכנסות", f"{total_income:,.2f} ₪")
     else:
@@ -80,7 +83,7 @@ with col_left:
     st.markdown("### 📤 הוצאות (קבועות באדום, משתנות בירוק)")
     df_expense = df[df["סוג"].isin(["הוצאה קבועה", "הוצאה משתנה", "הוצאה"])]
     if not df_expense.empty:
-        styled_expense = df_expense[["תיאור", "סכום", "סוג"]].style.apply(color_rows, axis=1)
+        styled_expense = df_expense.style.apply(color_rows, axis=1)
         st.dataframe(styled_expense, use_container_width=True, hide_index=True)
         total_expense = df_expense["סכום"].sum()
         st.metric("📦 סך הכל הוצאות כלליות", f"{total_expense:,.2f} ₪")
