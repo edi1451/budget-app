@@ -26,7 +26,7 @@ def load_data():
 
 df = load_data()
 
-# טופס להוספת תנועה חדשה עם בחירה מדויקת בין סוגי ההוצאות
+# טופס להוספת תנועה חדשה
 st.subheader("➕ הוספת תנועה חדשה")
 with st.form("budget_form", clear_on_submit=True):
     col_f1, col_f2, col_f3 = st.columns(3)
@@ -64,20 +64,33 @@ with col_right:
     else:
         st.info("אין עדיין הכנסות רשומות.")
 
-# --- טור שמאל: הוצאות (מחולקות לקבועות ומשתנות + סיכום כללי) ---
+# --- טור שמאל: הוצאות (קבועות ומשתנות) ---
 with col_left:
     st.markdown("### 📤 הוצאות (קבועות ומשתנות)")
     df_expense = df[df["סוג"].isin(["הוצאה קבועה", "הוצאה משתנה", "הוצאה"])]
     if not df_expense.empty:
         st.dataframe(df_expense[["תיאור", "סכום", "סוג"]], use_container_width=True, hide_index=True)
-        
-        # חישוב נפרד וסיכום כולל של כל ההוצאות
         total_expense = df_expense["סכום"].sum()
         st.metric("📦 סך הכל הוצאות כלליות", f"{total_expense:,.2f} ₪")
     else:
         st.info("אין עדיין הוצאות רשומות.")
 
 st.divider()
+
+# --- אזור מחיקת שורה ספציפית ---
+st.subheader("🗑️ מחיקת שורה / תנועה")
+if not df.empty:
+    # יצירת רשימה של תיאורים לבחירה
+    row_to_delete = st.selectbox("בחר תנועה למחיקה לפי התיאור שלה:", [None] + list(df["תיאור"].unique()))
+    
+    if row_to_delete:
+        if st.button("מחק את התנועה הנבחרת"):
+            # מחיקת השורות התואמות את התיאור שנבחר
+            df = df[df["תיאור"] != row_to_delete]
+            df.to_csv(DATA_FILE, index=False)
+            st.success(def_del := f"התנועה '{row_to_delete}' נמחקה בהצלחה!")
+            st.rerun()
+
 if st.button("איפוס כל הנתונים וחזרה להוצאות הקבועות הבסיסיות"):
     if os.path.exists(DATA_FILE):
         os.remove(DATA_FILE)
