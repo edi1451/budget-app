@@ -8,12 +8,12 @@ st.title("💰 מעקב הוצאות והכנסות אישי")
 
 DATA_FILE = "budget_data.csv"
 
-# הגדרת הוצאות קבועות בסיסיות לחודש הראשון (במספרים שלמים)
-FIXED_EXPENSES = [
-    {"חודש": "אוקטובר 2026", "תיאור": "שכירות / משכנתא", "סכום": 5000, "סוג": "הוצאה קבועה"},
-    {"חודש": "אוקטובר 2026", "תיאור": "ארנונה", "סכום": 600, "סוג": "הוצאה קבועה"},
-    {"חודש": "אוקטובר 2026", "תיאור": "חשמל ומים", "סכום": 400, "סוג": "הוצאה קבועה"},
-    {"חודש": "אוקטובר 2026", "תיאור": "אינטרנט וסלולר", "סכום": 200, "סוג": "הוצאה קבועה"},
+# תבנית ההוצאות הקבועות שתרתנה איתך אוטומטית לכל חודש
+TEMPLATE_FIXED_EXPENSES = [
+    {"תיאור": "שכירות / משכנתא", "סכום": 5000, "סוג": "הוצאה קבועה"},
+    {"תיאור": "ארנונה", "סכום": 600, "סוג": "הוצאה קבועה"},
+    {"תיאור": "חשמל ומים", "סכום": 400, "סוג": "הוצאה קבועה"},
+    {"תיאור": "אינטרנט וסלולר", "סכום": 200, "סוג": "הוצאה קבועה"},
 ]
 
 def load_data():
@@ -22,13 +22,23 @@ def load_data():
             df = pd.read_csv(DATA_FILE)
             if "חודש" not in df.columns:
                 os.remove(DATA_FILE)
-                return pd.DataFrame(FIXED_EXPENSES)
+                # יצירה ראשונית לאוקטובר
+                initial_data = []
+                for item in TEMPLATE_FIXED_EXPENSES:
+                    initial_data.append({"חודש": "אוקטובר 2026", **item})
+                return pd.DataFrame(initial_data)
             return df
         except Exception:
             os.remove(DATA_FILE)
-            return pd.DataFrame(FIXED_EXPENSES)
+            initial_data = []
+            for item in TEMPLATE_FIXED_EXPENSES:
+                initial_data.append({"חודש": "אוקטובר 2026", **item})
+            return pd.DataFrame(initial_data)
     else:
-        df_initial = pd.DataFrame(FIXED_EXPENSES)
+        initial_data = []
+        for item in TEMPLATE_FIXED_EXPENSES:
+            initial_data.append({"חודש": "אוקטובר 2026", **item})
+        df_initial = pd.DataFrame(initial_data)
         df_initial.to_csv(DATA_FILE, index=False)
         return df_initial
 
@@ -38,6 +48,15 @@ df = load_data()
 st.subheader("📅 בחירת חודש לניהול")
 available_months = list(df["חודש"].unique()) if not df.empty and "חודש" in df.columns else ["אוקטובר 2026"]
 selected_month = st.selectbox("בחר חודש:", ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"] + [m for m in available_months if m not in ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"]])
+
+# בדיקה אוטומטית: האם לחודש הנבחר יש כבר הוצאות קבועות? אם לא - מייצרים לו אוטומטית!
+current_month_check = df[df["חודש"] == selected_month]
+if current_month_check[current_month_check["סוג"] == "הוצאה קבועה"].empty:
+    new_fixed_rows = []
+    for item in TEMPLATE_FIXED_EXPENSES:
+        new_fixed_rows.append({"חודש": selected_month, **item})
+    df = pd.concat([df, pd.DataFrame(new_fixed_rows)], ignore_index=True)
+    df.to_csv(DATA_FILE, index=False)
 
 st.divider()
 
@@ -52,7 +71,7 @@ def color_rows(row):
         return ['color: #0275d8; font-weight: bold'] * len(row)  # כחול
     return [''] * len(row)
 
-# טופס להוספת תנועה חדשה לחודש הנבחר (מספר שלם בלבד)
+# טופס להוספת תנועה חדשה לחודש הנבחר
 st.subheader(f"➕ הוספת תנועה חדשה עבור: {selected_month}")
 with st.form("budget_form", clear_on_submit=True):
     col_f1, col_f2, col_f3 = st.columns(3)
@@ -86,7 +105,6 @@ with col_right:
     st.markdown("### 📥 הכנסות")
     df_income = df_current_month[df_current_month["סוג"] == "הכנסה"]
     if not df_income.empty:
-        # עיצוב הסכומים כמספרים שלמים בטבלה
         df_income_display = df_income[["תיאור", "סכום", "סוג"]].copy()
         df_income_display["סכום"] = df_income_display["סכום"].apply(lambda x: f"{int(x):,} ₪")
         styled_income = df_income_display.style.apply(color_rows, axis=1)
