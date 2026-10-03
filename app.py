@@ -103,6 +103,10 @@ st.subheader(f"📊 סיכום חודשי עבור {selected_month}")
 
 col_left, col_right = st.columns(2)
 
+# משתנים לחישוב ההפרש בהמשך
+total_income = 0
+total_expense = 0
+
 # --- טור ימין: הכנסות ---
 with col_right:
     st.markdown("### 📥 הכנסות (בכחול)")
@@ -130,6 +134,17 @@ with col_left:
         st.metric("📦 סך הכל הוצאות כלליות", f"{total_expense:,} ₪")
     else:
         st.info(f"אין עדיין הוצאות רשומות לחודש {selected_month}.")
+
+st.divider()
+
+# --- שורה תחתונה: חישוב העברה לחיסכון (הכנסות פחות הוצאות) ---
+savings_amount = total_income - total_expense
+st.subheader("piggy_bank 🪙 סיכום סופי: הכנסות פחות הוצאות (העברה לחיסכון)")
+
+if savings_amount >= 0:
+    st.success(f"💰 סכום פנוי להעברה לחיסכון החודש: **{savings_amount:,} ₪**")
+else:
+    st.error(f"⚠️ גירעון החודש (הוצאות גבוהות מההכנסות): **{savings_amount:,} ₪**")
 
 st.divider()
 
