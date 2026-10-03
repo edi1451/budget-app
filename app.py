@@ -8,29 +8,20 @@ st.title("💰 מעקב הוצאות והכנסות אישי")
 
 DATA_FILE = "budget_data.csv"
 
-# ברירת מחדל ראשונית אך ורק אם הקובץ ריק לחלוטין בפעם הראשונה
-INITIAL_FIXED = [
-    {"חודש": "אוקטובר 2026", "תיאור": "שכירות / משכנתא", "סכום": 5000, "סוג": "הוצאה קבועה"},
-    {"חודש": "אוקטובר 2026", "תיאור": "ארנונה", "סכום": 600, "סוג": "הוצאה קבועה"},
-    {"חודש": "אוקטובר 2026", "תיאור": "חשמל ומים", "סכום": 400, "סוג": "הוצאה קבועה"},
-    {"חודש": "אוקטובר 2026", "תיאור": "אינטרנט וסלולר", "סכום": 200, "סוג": "הוצאה קבועה"},
-]
-
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
             df = pd.read_csv(DATA_FILE)
             if "חודש" not in df.columns or "סוג" not in df.columns:
                 os.remove(DATA_FILE)
-                return pd.DataFrame(INITIAL_FIXED)
+                return pd.DataFrame(columns=["חודש", "תיאור", "סכום", "סוג"])
             return df
         except Exception:
             os.remove(DATA_FILE)
-            return pd.DataFrame(INITIAL_FIXED)
+            return pd.DataFrame(columns=["חודש", "תיאור", "סכום", "סוג"])
     else:
-        df_initial = pd.DataFrame(INITIAL_FIXED)
-        df_initial.to_csv(DATA_FILE, index=False)
-        return df_initial
+        # קובץ ריק לחלוטין בהתחלה - מתחילים נקי בלי ערכים מזויפים
+        return pd.DataFrame(columns=["חודש", "תיאור", "סכום", "סוג"])
 
 df = load_data()
 
@@ -39,22 +30,21 @@ st.subheader("📅 בחירת חודש לניהול")
 available_months = list(df["חודש"].unique()) if not df.empty and "חודש" in df.columns else ["אוקטובר 2026"]
 selected_month = st.selectbox("בחר חודש:", ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"] + [m for m in available_months if m not in ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"]])
 
-# בדיקה אוטומטית חכמה: אם לחודש הנבחר אין עדיין הוצאות קבועות בכלל
+# בדיקה אוטומטית חכמה: אם לחודש הנבחר אין עדיין הוצאות קבועות, ניקח אך ורק את ההוצאות הקבועות שהמשתמש הגדיר בחודש הראשון שלו
 current_month_check = df[df["חודש"] == selected_month]
 if current_month_check[current_month_check["סוג"] == "הוצאה קבועה"].empty:
-    # אנחנו מחפשים את ההוצאות הקבועות מן החודש האחרון שהוזן במערכת (או מאוקטובר)
     all_fixed = df[df["סוג"] == "הוצאה קבועה"]
     if not all_fixed.empty:
-        # לוקחים את החודש האחרון שקיים בטבלה שיש בו הוצאות קבועות
-        last_month_with_fixed = all_fixed["חודש"].iloc[-1]
-        source_fixed = all_fixed[all_fixed["חודש"] == last_month_with_fixed][["תיאור", "סכום", "סוג"]].drop_duplicates()
+        # מוצאים את החודש הראשון שבו המשתמש הגדיר הוצאות קבועות משל עצמו
+        first_month_with_fixed = all_fixed["חודש"].iloc[0]
+        base_fixed = all_fixed[all_fixed["חודש"] == first_month_with_fixed][["תיאור", "סכום", "סוג"]].drop_duplicates()
         
         new_fixed_rows = []
-        for _, row in source_fixed.iterrows():
+        for _, row in base_fixed.iterrows():
             new_fixed_rows.append({
                 "חודש": selected_month,
                 "תיאור": row["תיאור"],
-                "סכום": row["סכום"],
+                "סכום": int(row["סכום"]),
                 "סוג": "הוצאה קבועה"
             })
         if new_fixed_rows:
@@ -145,7 +135,8 @@ if not df_current_month.empty:
             st.success(f"התנועה '{row_to_delete}' נמחקה בהצלחה מ-{selected_month}!")
             st.rerun()
 
-if st.button("איפוס כל הנתונים במערכת"):
+st.divider()
+if st.button("🔄 איפוס מלא של כל הנתונים והתחל מחדש"):
     if os.path.exists(DATA_FILE):
         os.remove(DATA_FILE)
     st.rerun()
