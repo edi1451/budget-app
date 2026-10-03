@@ -1,38 +1,26 @@
 import streamlit as st
 import pandas as pd
-import os
 
 st.set_page_config(page_title="מעקב תקציב אישי", page_icon="💰", layout="wide")
 
 st.title("💰 מעקב הוצאות והכנסות אישי")
 
-DATA_FILE = "budget_data.csv"
+# אתחול הזיכרון הפנימי של האפליקציה (בלי קבצים חיצוניים שנתקעים)
+if "budget_data" not in st.session_state:
+    st.session_state.budget_data = pd.DataFrame(columns=["חודש", "תיאור", "סכום", "סוג"])
 
-def load_data():
-    if os.path.exists(DATA_FILE):
-        try:
-            df = pd.read_csv(DATA_FILE)
-            if "חודש" not in df.columns or "סוג" not in df.columns or "סכום" not in df.columns:
-                return pd.DataFrame(columns=["חודש", "תיאור", "סכום", "סוג"])
-            return df
-        except Exception:
-            return pd.DataFrame(columns=["חודש", "תיאור", "סכום", "סוג"])
-    else:
-        return pd.DataFrame(columns=["חודש", "תיאור", "סכום", "סוג"])
+df = st.session_state.budget_data
 
-df = load_data()
-
-# כפתור איפוס מהיר בראש העמוד אם הקובץ תקוע
+# כפתור איפוס מהיר בצד
 if st.sidebar.button("🗑️ איפוס מלא של כל הנתונים"):
-    if os.path.exists(DATA_FILE):
-        os.remove(DATA_FILE)
+    st.session_state.budget_data = pd.DataFrame(columns=["חודש", "תיאור", "סכום", "סוג"])
     st.rerun()
 
 # בחירת חודש בראש העמוד
 st.subheader("📅 בחירת חודש לניהול")
-available_months = list(df["חודש"].unique()) if not df.empty and "חודש" in df.columns else []
+existing_months = list(df["חודש"].unique()) if not df.empty else []
 default_months = ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"]
-all_months_list = default_months + [m for m in available_months if m not in default_months]
+all_months_list = default_months + [m for m in existing_months if m not in default_months]
 
 selected_month = st.selectbox("בחר חודש:", all_months_list)
 
@@ -54,7 +42,7 @@ st.subheader(f"➕ הוספת תנועה חדשה עבור: {selected_month}")
 with st.form("budget_form", clear_on_submit=True):
     col_f1, col_f2, col_f3 = st.columns(3)
     with col_f1:
-        description = st.text_input("תיאור (למשל: סופרמרקט, משכורת, שכירות)")
+        description = st.text_input("תיאור (למשל: שכירות, סופר, משכורת)")
     with col_f2:
         amount = st.number_input("סכום (ש\"ח)", value=0, step=10, format="%d")
     with col_f3:
@@ -64,23 +52,21 @@ with st.form("budget_form", clear_on_submit=True):
 
     if submitted and description:
         new_row = pd.DataFrame([{"חודש": selected_month, "תיאור": description, "סכום": int(amount), "סוג": trans_type}])
-        df = pd.concat([df, new_row], ignore_index=True)
-        df.to_csv(DATA_FILE, index=False)
+        st.session_state.budget_data = pd.concat([st.session_state.budget_data, new_row], ignore_index=True)
         st.success(f"נוסף בהצלחה ל-{selected_month}: {description} בסך {int(amount)} ₪")
         st.rerun()
 
-# אפשרות להעתיק הוצאות קבועות מחודש קודם בלחיצת כפתור מבוקרת (כדי שתראה בדיוק מה עובר)
-if available_months:
-    with st.expander("📋 העתקת הוצאות קבועות מחודש אחר לחודש הנוכחי"):
-        source_month_to_copy = st.selectbox("בחר חודש מקור להעתקה:", [m for m in available_months if m != selected_month])
-        if source_month_to_copy and st.button("העתק הוצאות קבועות לחודש זה"):
-            fixed_to_copy = df[(df["חודש"] == source_month_to_copy) & (df["סוג"] == "הוצאה קבועה")]
-            if not fixed_to_copy.empty:
-                # מנקים כפילויות קיימות בחודש היעד אם צריך
-                existing_current_fixed = df[(df["חודש"] == selected_month) & (df["סוג"] == "הוצאה קבועה")]["תיאור"].values
+# כפתור נוח להעתקת ההוצאות הקבועות שהמשתמש עצמו הגדיר
+if existing_months:
+    with st.expander("📋 העתקת ההוצאות הקבועות שלך מחודש קודם"):
+        source_month = st.selectbox("בחר חודש לקחת ממנו הוצאות קבועות:", [m for m in existing_months if m != selected_month])
+        if source_month and st.button("📋 העתק את ההוצאות הקבועות שלי לחודש זה"):
+            user_fixed = df[(df["חודש"] == source_month) & (df["סוג"] == "הוצאה קבועה")]
+            if not user_fixed.empty:
+                current_fixed_desc = df[(df["חודש"] == selected_month) & (df["סוג"] == "הוצאה קבועה")]["תיאור"].values
                 rows_to_add = []
-                for _, r in fixed_to_copy.iterrows():
-                    if r["תיאור"] not in existing_current_fixed:
+                for _, r in user_fixed.iterrows():
+                    if r["תיאור"] not in current_fixed_desc:
                         rows_to_add.append({
                             "חודש": selected_month,
                             "תיאור": r["תיאור"],
@@ -88,19 +74,18 @@ if available_months:
                             "סוג": "הוצאה קבועה"
                         })
                 if rows_to_add:
-                    df = pd.concat([df, pd.DataFrame(rows_to_add)], ignore_index=True)
-                    df.to_csv(DATA_FILE, index=False)
-                    st.success("ההוצאות הקבועות הועתקו בהצלחה!")
+                    st.session_state.budget_data = pd.concat([st.session_state.budget_data, pd.DataFrame(rows_to_add)], ignore_index=True)
+                    st.success("ההוצאות הקבועות שלך הועתקו בהצלחה בדיוק כפי שהגדרת!")
                     st.rerun()
                 else:
-                    st.warning("כל ההוצאות הקבועות האלו כבר קיימות בחודש זה.")
+                    st.warning("ההוצאות הקבועות האלו כבר קיימות בחודש הנבחר.")
             else:
-                st.info("אין הוצאות קבועות בחודש הנבחר.")
+                st.info("אין הוצאות קבועות רשומות בחודש שבחרת.")
 
 st.divider()
 
 # סינון הנתונים לפי החודש הנבחר בלבד
-df_current_month = df[df["חודש"] == selected_month] if not df.empty else pd.DataFrame(columns=["חודש", "תיאור", "סכום", "סוג"])
+df_current_month = st.session_state.budget_data[st.session_state.budget_data["חודש"] == selected_month] if not st.session_state.budget_data.empty else pd.DataFrame()
 
 st.subheader(f"📊 סיכום חודשי עבור {selected_month}")
 
@@ -142,7 +127,8 @@ if not df_current_month.empty:
     
     if row_to_delete:
         if st.button("מחק את התנועה הנבחרת"):
-            df = df[~((df["חודש"] == selected_month) & (df["תיאור"] == row_to_delete))]
-            df.to_csv(DATA_FILE, index=False)
-            st.success(f"התנועה '{row_to_delete}' נמחקה בהצלחה מ-{selected_month}!")
+            st.session_state.budget_data = st.session_state.budget_data[
+                ~((st.session_state.budget_data["חודש"] == selected_month) & (st.session_state.budget_data["תיאור"] == row_to_delete))
+            ]
+            st.success(f"התנועה '{row_to_delete}' נמחקה בהצלחה!")
             st.rerun()
