@@ -18,7 +18,16 @@ FIXED_EXPENSES = [
 
 def load_data():
     if os.path.exists(DATA_FILE):
-        return pd.read_csv(DATA_FILE)
+        try:
+            df = pd.read_csv(DATA_FILE)
+            # בדיקה האם עמודת 'חודש' קיימת בקובץ הישן
+            if "חודש" not in df.columns:
+                os.remove(DATA_FILE)
+                return pd.DataFrame(FIXED_EXPENSES)
+            return df
+        except Exception:
+            os.remove(DATA_FILE)
+            return pd.DataFrame(FIXED_EXPENSES)
     else:
         df_initial = pd.DataFrame(FIXED_EXPENSES)
         df_initial.to_csv(DATA_FILE, index=False)
@@ -28,7 +37,7 @@ df = load_data()
 
 # בחירת חודש בראש העמוד
 st.subheader("📅 בחירת חודש לניהול")
-available_months = list(df["חודש"].unique()) if not df.empty else ["אוקטובר 2026"]
+available_months = list(df["חודש"].unique()) if not df.empty and "חודש" in df.columns else ["אוקטובר 2026"]
 selected_month = st.selectbox("בחר חודש:", ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"] + [m for m in available_months if m not in ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"]])
 
 st.divider()
