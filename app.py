@@ -26,7 +26,6 @@ if st.sidebar.button("🗑️ איפוס מלא של כל הנתונים"):
 # הצגת חודשים שקיימים בפועל בקובץ בלבד + חודש אוקטובר 2026 כברירת מחדל נקייה
 available_months = list(df["חודש"].unique()) if not df.empty and "חודש" in df.columns else []
 base_list = ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"]
-# שילוב נקי בלי כפילויות - רק מה שקיים באמת או ברשימת הבסיס
 all_months_list = []
 for m in base_list + available_months:
     if m not in all_months_list:
@@ -37,7 +36,7 @@ selected_month = st.selectbox("בחר חודש:", all_months_list)
 
 st.divider()
 
-# פונקציית צביעה לשורות בטבלה
+# פונקציית צביעה לשורות בטבלה (הוצאה קבועה באדום, משתנה בירוק, הכנסה בכחול)
 def color_rows(row):
     trans_type = row.get("סוג", "")
     if trans_type == "הוצאה קבועה":
@@ -106,12 +105,13 @@ col_left, col_right = st.columns(2)
 
 # --- טור ימין: הכנסות ---
 with col_right:
-    st.markdown("### 📥 הכנסות")
+    st.markdown("### 📥 הכנסות (בכחול)")
     df_income = df_current_month[df_current_month["סוג"] == "הכנסה"] if not df_current_month.empty else pd.DataFrame()
     if not df_income.empty:
-        df_income_display = df_income[["תיאור", "סכום"]].copy()
+        df_income_display = df_income[["תיאור", "סכום", "סוג"]].copy()
         df_income_display["סכום"] = df_income_display["סכום"].apply(lambda x: f"{int(x):,} ₪")
-        st.dataframe(df_income_display, use_container_width=True, hide_index=True)
+        styled_income = df_income_display.style.apply(color_rows, axis=1)
+        st.dataframe(styled_income, use_container_width=True, hide_index=True, column_config={"סוג": None})
         total_income = int(df_income["סכום"].sum())
         st.metric("סך הכל הכנסות", f"{total_income:,} ₪")
     else:
