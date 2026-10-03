@@ -8,37 +8,27 @@ st.title("💰 מעקב הוצאות והכנסות אישי")
 
 DATA_FILE = "budget_data.csv"
 
-# תבנית ההוצאות הקבועות שתרתנה איתך אוטומטית לכל חודש
-TEMPLATE_FIXED_EXPENSES = [
-    {"תיאור": "שכירות / משכנתא", "סכום": 5000, "סוג": "הוצאה קבועה"},
-    {"תיאור": "ארנונה", "סכום": 600, "סוג": "הוצאה קבועה"},
-    {"תיאור": "חשמל ומים", "סכום": 400, "סוג": "הוצאה קבועה"},
-    {"תיאור": "אינטרנט וסלולר", "סכום": 200, "סוג": "הוצאה קבועה"},
+# ברירת מחדל ראשונית רק אם הקובץ ריק לחלוטין
+INITIAL_FIXED = [
+    {"חודש": "אוקטובר 2026", "תיאור": "שכירות / משכנתא", "סכום": 5000, "סוג": "הוצאה קבועה"},
+    {"חודש": "אוקטובר 2026", "תיאור": "ארנונה", "סכום": 600, "סוג": "הוצאה קבועה"},
+    {"חודש": "אוקטובר 2026", "תיאור": "חשמל ומים", "סכום": 400, "סוג": "הוצאה קבועה"},
+    {"חודש": "אוקטובר 2026", "תיאור": "אינטרנט וסלולר", "סכום": 200, "סוג": "הוצאה קבועה"},
 ]
 
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
             df = pd.read_csv(DATA_FILE)
-            if "חודש" not in df.columns:
+            if "חודש" not in df.columns or "סוג" not in df.columns:
                 os.remove(DATA_FILE)
-                # יצירה ראשונית לאוקטובר
-                initial_data = []
-                for item in TEMPLATE_FIXED_EXPENSES:
-                    initial_data.append({"חודש": "אוקטובר 2026", **item})
-                return pd.DataFrame(initial_data)
+                return pd.DataFrame(INITIAL_FIXED)
             return df
         except Exception:
             os.remove(DATA_FILE)
-            initial_data = []
-            for item in TEMPLATE_FIXED_EXPENSES:
-                initial_data.append({"חודש": "אוקטובר 2026", **item})
-            return pd.DataFrame(initial_data)
+            return pd.DataFrame(INITIAL_FIXED)
     else:
-        initial_data = []
-        for item in TEMPLATE_FIXED_EXPENSES:
-            initial_data.append({"חודש": "אוקטובר 2026", **item})
-        df_initial = pd.DataFrame(initial_data)
+        df_initial = pd.DataFrame(INITIAL_FIXED)
         df_initial.to_csv(DATA_FILE, index=False)
         return df_initial
 
@@ -49,14 +39,25 @@ st.subheader("📅 בחירת חודש לניהול")
 available_months = list(df["חודש"].unique()) if not df.empty and "חודש" in df.columns else ["אוקטובר 2026"]
 selected_month = st.selectbox("בחר חודש:", ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"] + [m for m in available_months if m not in ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"]])
 
-# בדיקה אוטומטית: האם לחודש הנבחר יש כבר הוצאות קבועות? אם לא - מייצרים לו אוטומטית!
+# בדיקה אוטומטית: אם לחודש הנבחר אין עדיין הוצאות קבועות, ניקח את ההוצאות הקבועות מכל חודש קיים (או מהחודש הראשון) ונעתיק אותן לכאן
 current_month_check = df[df["חודש"] == selected_month]
 if current_month_check[current_month_check["סוג"] == "הוצאה קבועה"].empty:
-    new_fixed_rows = []
-    for item in TEMPLATE_FIXED_EXPENSES:
-        new_fixed_rows.append({"חודש": selected_month, **item})
-    df = pd.concat([df, pd.DataFrame(new_fixed_rows)], ignore_index=True)
-    df.to_csv(DATA_FILE, index=False)
+    # מחפש את ההוצאות הקבועות שקיימות במערכת (למשל מאוקטובר או מה שהמשתמש הוסיף)
+    existing_fixed = df[df["סוג"] == "הוצאה קבועה"]
+    if not existing_fixed.empty:
+        # לוקחים את רשימת ההוצאות הקבועות הייחודיות (לפי תיאור וסכום) כדי לא ליצור כפילויות מיותרות
+        unique_fixed = existing_fixed[["תיאור", "סכום", "סוג"]].drop_duplicates()
+        new_fixed_rows = []
+        for _, row in unique_fixed.iterrows():
+            new_fixed_rows.append({
+                "חודש": selected_month,
+                "תיאור": row["תיאור"],
+                "סכום": row["סכום"],
+                "סוג": "הוצאה קבועה"
+            })
+        if new_fixed_rows:
+            df = pd.concat([df, pd.DataFrame(new_fixed_rows)], ignore_index=True)
+            df.to_csv(DATA_FILE, index=False)
 
 st.divider()
 
@@ -146,3 +147,4 @@ if st.button("איפוס כל הנתונים במערכת"):
     if os.path.exists(DATA_FILE):
         os.remove(DATA_FILE)
     st.rerun()
+
