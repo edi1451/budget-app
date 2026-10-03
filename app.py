@@ -8,7 +8,7 @@ st.title("💰 מעקב הוצאות והכנסות אישי")
 
 DATA_FILE = "budget_data.csv"
 
-# הגדרת הוצאות קבועות שרצות איתך בכל חודש
+# הגדרת הוצאות קבועות בסיסיות שרצות איתך בכל חודש
 FIXED_EXPENSES = [
     {"תיאור": "שכירות / משכנתא", "סכום": 5000.0, "סוג": "הוצאה קבועה"},
     {"תיאור": "ארנונה", "סכום": 600.0, "סוג": "הוצאה קבועה"},
@@ -26,7 +26,7 @@ def load_data():
 
 df = load_data()
 
-# טופס להוספת תנועה חדשה
+# טופס להוספת תנועה חדשה עם בחירה מדויקת בין סוגי ההוצאות
 st.subheader("➕ הוספת תנועה חדשה")
 with st.form("budget_form", clear_on_submit=True):
     col_f1, col_f2, col_f3 = st.columns(3)
@@ -35,7 +35,7 @@ with st.form("budget_form", clear_on_submit=True):
     with col_f2:
         amount = st.number_input("סכום (ש\"ח)", value=0.0, step=10.0)
     with col_f3:
-        trans_type = st.selectbox("סוג תנועה", ["הוצאה", "הכנסה"])
+        trans_type = st.selectbox("סוג תנועה", ["הוצאה משתנה", "הוצאה קבועה", "הכנסה"])
         
     submitted = st.form_submit_button("הוסף לרשימה")
 
@@ -43,7 +43,7 @@ with st.form("budget_form", clear_on_submit=True):
         new_row = pd.DataFrame([{"תיאור": description, "סכום": amount, "סוג": trans_type}])
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_csv(DATA_FILE, index=False)
-        st.success(f"נוסף בהצלחה: {description} בסך {amount} ₪")
+        st.success(f"נוסף בהצלחה: {description} בסך {amount} ₪ ({trans_type})")
         st.rerun()
 
 st.divider()
@@ -64,14 +64,16 @@ with col_right:
     else:
         st.info("אין עדיין הכנסות רשומות.")
 
-# --- טור שמאל: הוצאות (כולל קבועות ושוטפות כמו שונות) ---
+# --- טור שמאל: הוצאות (מחולקות לקבועות ומשתנות + סיכום כללי) ---
 with col_left:
-    st.markdown("### 📤 הוצאות (כולל קבועות ושוטפות)")
-    df_expense = df[df["סוג"].isin(["הוצאה", "הוצאה קבועה"])]
+    st.markdown("### 📤 הוצאות (קבועות ומשתנות)")
+    df_expense = df[df["סוג"].isin(["הוצאה קבועה", "הוצאה משתנה", "הוצאה"])]
     if not df_expense.empty:
         st.dataframe(df_expense[["תיאור", "סכום", "סוג"]], use_container_width=True, hide_index=True)
+        
+        # חישוב נפרד וסיכום כולל של כל ההוצאות
         total_expense = df_expense["סכום"].sum()
-        st.metric("סך הכל הוצאות", f"{total_expense:,.2f} ₪")
+        st.metric("📦 סך הכל הוצאות כלליות", f"{total_expense:,.2f} ₪")
     else:
         st.info("אין עדיין הוצאות רשומות.")
 
