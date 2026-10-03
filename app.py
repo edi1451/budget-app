@@ -8,19 +8,18 @@ st.title("💰 מעקב הוצאות והכנסות אישי")
 
 DATA_FILE = "budget_data.csv"
 
-# הגדרת הוצאות קבועות בסיסיות לחודש הראשון
+# הגדרת הוצאות קבועות בסיסיות לחודש הראשון (במספרים שלמים)
 FIXED_EXPENSES = [
-    {"חודש": "אוקטובר 2026", "תיאור": "שכירות / משכנתא", "סכום": 5000.0, "סוג": "הוצאה קבועה"},
-    {"חודש": "אוקטובר 2026", "תיאור": "ארנונה", "סכום": 600.0, "סוג": "הוצאה קבועה"},
-    {"חודש": "אוקטובר 2026", "תיאור": "חשמל ומים", "סכום": 400.0, "סוג": "הוצאה קבועה"},
-    {"חודש": "אוקטובר 2026", "תיאור": "אינטרנט וסלולר", "סכום": 200.0, "סוג": "הוצאה קבועה"},
+    {"חודש": "אוקטובר 2026", "תיאור": "שכירות / משכנתא", "סכום": 5000, "סוג": "הוצאה קבועה"},
+    {"חודש": "אוקטובר 2026", "תיאור": "ארנונה", "סכום": 600, "סוג": "הוצאה קבועה"},
+    {"חודש": "אוקטובר 2026", "תיאור": "חשמל ומים", "סכום": 400, "סוג": "הוצאה קבועה"},
+    {"חודש": "אוקטובר 2026", "תיאור": "אינטרנט וסלולר", "סכום": 200, "סוג": "הוצאה קבועה"},
 ]
 
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
             df = pd.read_csv(DATA_FILE)
-            # בדיקה האם עמודת 'חודש' קיימת בקובץ הישן
             if "חודש" not in df.columns:
                 os.remove(DATA_FILE)
                 return pd.DataFrame(FIXED_EXPENSES)
@@ -53,24 +52,24 @@ def color_rows(row):
         return ['color: #0275d8; font-weight: bold'] * len(row)  # כחול
     return [''] * len(row)
 
-# טופס להוספת תנועה חדשה לחודש הנבחר
+# טופס להוספת תנועה חדשה לחודש הנבחר (מספר שלם בלבד)
 st.subheader(f"➕ הוספת תנועה חדשה עבור: {selected_month}")
 with st.form("budget_form", clear_on_submit=True):
     col_f1, col_f2, col_f3 = st.columns(3)
     with col_f1:
         description = st.text_input("תיאור (למשל: סופרמרקט, משכורת)")
     with col_f2:
-        amount = st.number_input("סכום (ש\"ח)", value=0.0, step=10.0)
+        amount = st.number_input("סכום (ש\"ח)", value=0, step=10, format="%d")
     with col_f3:
         trans_type = st.selectbox("סוג תנועה", ["הוצאה משתנה", "הוצאה קבועה", "הכנסה"])
         
     submitted = st.form_submit_button("הוסף לרשימה")
 
     if submitted and description:
-        new_row = pd.DataFrame([{"חודש": selected_month, "תיאור": description, "סכום": amount, "סוג": trans_type}])
+        new_row = pd.DataFrame([{"חודש": selected_month, "תיאור": description, "סכום": int(amount), "סוג": trans_type}])
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_csv(DATA_FILE, index=False)
-        st.success(f"נוסף בהצלחה ל-{selected_month}: {description} בסך {amount} ₪")
+        st.success(f"נוסף בהצלחה ל-{selected_month}: {description} בסך {int(amount)} ₪")
         st.rerun()
 
 st.divider()
@@ -87,10 +86,13 @@ with col_right:
     st.markdown("### 📥 הכנסות")
     df_income = df_current_month[df_current_month["סוג"] == "הכנסה"]
     if not df_income.empty:
-        styled_income = df_income.style.apply(color_rows, axis=1)
-        st.dataframe(styled_income, use_container_width=True, hide_index=True, column_config={"חודש": None, "סוג": None})
-        total_income = df_income["סכום"].sum()
-        st.metric("סך הכל הכנסות", f"{total_income:,.2f} ₪")
+        # עיצוב הסכומים כמספרים שלמים בטבלה
+        df_income_display = df_income[["תיאור", "סכום", "סוג"]].copy()
+        df_income_display["סכום"] = df_income_display["סכום"].apply(lambda x: f"{int(x):,} ₪")
+        styled_income = df_income_display.style.apply(color_rows, axis=1)
+        st.dataframe(styled_income, use_container_width=True, hide_index=True, column_config={"סוג": None})
+        total_income = int(df_income["סכום"].sum())
+        st.metric("סך הכל הכנסות", f"{total_income:,} ₪")
     else:
         st.info(f"אין עדיין הכנסות רשומות לחודש {selected_month}.")
 
@@ -99,10 +101,12 @@ with col_left:
     st.markdown("### 📤 הוצאות (קבועות באדום, משתנות בירוק)")
     df_expense = df_current_month[df_current_month["סוג"].isin(["הוצאה קבועה", "הוצאה משתנה", "הוצאה"])]
     if not df_expense.empty:
-        styled_expense = df_expense.style.apply(color_rows, axis=1)
-        st.dataframe(styled_expense, use_container_width=True, hide_index=True, column_config={"חודש": None})
-        total_expense = df_expense["סכום"].sum()
-        st.metric("📦 סך הכל הוצאות כלליות", f"{total_expense:,.2f} ₪")
+        df_expense_display = df_expense[["תיאור", "סכום", "סוג"]].copy()
+        df_expense_display["סכום"] = df_expense_display["סכום"].apply(lambda x: f"{int(x):,} ₪")
+        styled_expense = df_expense_display.style.apply(color_rows, axis=1)
+        st.dataframe(styled_expense, use_container_width=True, hide_index=True)
+        total_expense = int(df_expense["סכום"].sum())
+        st.metric("📦 סך הכל הוצאות כלליות", f"{total_expense:,} ₪")
     else:
         st.info(f"אין עדיין הוצאות רשומות לחודש {selected_month}.")
 
