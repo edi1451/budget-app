@@ -8,7 +8,7 @@ st.title("💰 מעקב הוצאות והכנסות אישי")
 
 DATA_FILE = "budget_data.csv"
 
-# טעינת הנתונים מהקובץ או יצירת טבלה ריקה אם הקובץ לא קיים
+# טעינת הנתונים מהקובץ או יצירת טבלה ריקה
 if os.path.exists(DATA_FILE):
     try:
         df = pd.read_csv(DATA_FILE)
@@ -17,18 +17,22 @@ if os.path.exists(DATA_FILE):
 else:
     df = pd.DataFrame(columns=["חודש", "תיאור", "סכום", "סוג"])
 
-# כפתור איפוס מהיר בצד (רק אם תרצה למחוק הכל מרצונך)
+# כפתור איפוס מהיר בצד (אם תרצה למחוק הכל ולהתחיל נקי לחלוטין)
 if st.sidebar.button("🗑️ איפוס מלא של כל הנתונים"):
     if os.path.exists(DATA_FILE):
         os.remove(DATA_FILE)
     st.rerun()
 
-# בחירת חודש בראש העמוד
-st.subheader("📅 בחירת חודש לניהול")
+# הצגת חודשים שקיימים בפועל בקובץ בלבד + חודש אוקטובר 2026 כברירת מחדל נקייה
 available_months = list(df["חודש"].unique()) if not df.empty and "חודש" in df.columns else []
-default_months = ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"]
-all_months_list = default_months + [m for m in available_months if m not in default_months]
+base_list = ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"]
+# שילוב נקי בלי כפילויות - רק מה שקיים באמת או ברשימת הבסיס
+all_months_list = []
+for m in base_list + available_months:
+    if m not in all_months_list:
+        all_months_list.append(m)
 
+st.subheader("📅 בחירת חודש לניהול")
 selected_month = st.selectbox("בחר חודש:", all_months_list)
 
 st.divider()
