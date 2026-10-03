@@ -8,7 +8,7 @@ st.title("💰 מעקב הוצאות והכנסות אישי")
 
 DATA_FILE = "budget_data.csv"
 
-# ברירת מחדל ראשונית רק אם הקובץ ריק לחלוטין
+# ברירת מחדל ראשונית אך ורק אם הקובץ ריק לחלוטין בפעם הראשונה
 INITIAL_FIXED = [
     {"חודש": "אוקטובר 2026", "תיאור": "שכירות / משכנתא", "סכום": 5000, "סוג": "הוצאה קבועה"},
     {"חודש": "אוקטובר 2026", "תיאור": "ארנונה", "סכום": 600, "סוג": "הוצאה קבועה"},
@@ -39,16 +39,18 @@ st.subheader("📅 בחירת חודש לניהול")
 available_months = list(df["חודש"].unique()) if not df.empty and "חודש" in df.columns else ["אוקטובר 2026"]
 selected_month = st.selectbox("בחר חודש:", ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"] + [m for m in available_months if m not in ["אוקטובר 2026", "נובמבר 2026", "דצמבר 2026", "ינואר 2027"]])
 
-# בדיקה אוטומטית: אם לחודש הנבחר אין עדיין הוצאות קבועות, ניקח את ההוצאות הקבועות מכל חודש קיים (או מהחודש הראשון) ונעתיק אותן לכאן
+# בדיקה אוטומטית חכמה: אם לחודש הנבחר אין עדיין הוצאות קבועות בכלל
 current_month_check = df[df["חודש"] == selected_month]
 if current_month_check[current_month_check["סוג"] == "הוצאה קבועה"].empty:
-    # מחפש את ההוצאות הקבועות שקיימות במערכת (למשל מאוקטובר או מה שהמשתמש הוסיף)
-    existing_fixed = df[df["סוג"] == "הוצאה קבועה"]
-    if not existing_fixed.empty:
-        # לוקחים את רשימת ההוצאות הקבועות הייחודיות (לפי תיאור וסכום) כדי לא ליצור כפילויות מיותרות
-        unique_fixed = existing_fixed[["תיאור", "סכום", "סוג"]].drop_duplicates()
+    # אנחנו מחפשים את ההוצאות הקבועות מן החודש האחרון שהוזן במערכת (או מאוקטובר)
+    all_fixed = df[df["סוג"] == "הוצאה קבועה"]
+    if not all_fixed.empty:
+        # לוקחים את החודש האחרון שקיים בטבלה שיש בו הוצאות קבועות
+        last_month_with_fixed = all_fixed["חודש"].iloc[-1]
+        source_fixed = all_fixed[all_fixed["חודש"] == last_month_with_fixed][["תיאור", "סכום", "סוג"]].drop_duplicates()
+        
         new_fixed_rows = []
-        for _, row in unique_fixed.iterrows():
+        for _, row in source_fixed.iterrows():
             new_fixed_rows.append({
                 "חודש": selected_month,
                 "תיאור": row["תיאור"],
@@ -147,4 +149,3 @@ if st.button("איפוס כל הנתונים במערכת"):
     if os.path.exists(DATA_FILE):
         os.remove(DATA_FILE)
     st.rerun()
-
