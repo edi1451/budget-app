@@ -8,7 +8,7 @@ st.title("💰 מעקב הוצאות והכנסות אישי")
 
 DATA_FILE = "budget_data.csv"
 
-# הגדרת הוצאות קבועות בסיסיות שרצות איתך בכל חודש
+# הגדרת הוצאות קבועות בסיסיות שרצות איתך קדימה
 FIXED_EXPENSES = [
     {"תיאור": "שכירות / משכנתא", "סכום": 5000.0, "סוג": "הוצאה קבועה"},
     {"תיאור": "ארנונה", "סכום": 600.0, "סוג": "הוצאה קבועה"},
@@ -26,12 +26,22 @@ def load_data():
 
 df = load_data()
 
+# פונקציית צביעה לשורות בטבלה
+def color_rows(row):
+    if row["סוג"] == "הוצאה קבועה":
+        return ['color: #d9534f; font-weight: bold'] * len(row)  # אדום
+    elif row["סוג"] == "הוצאה משתנה":
+        return ['color: #5cb85c; font-weight: bold'] * len(row)  # ירוק
+    elif row["סוג"] == "הכנסה":
+        return ['color: #0275d8; font-weight: bold'] * len(row)  # כחול
+    return [''] * len(row)
+
 # טופס להוספת תנועה חדשה
 st.subheader("➕ הוספת תנועה חדשה")
 with st.form("budget_form", clear_on_submit=True):
     col_f1, col_f2, col_f3 = st.columns(3)
     with col_f1:
-        description = st.text_input("תיאור (למשל: סופרמרקט, שונות, משכורת)")
+        description = st.text_input("תיאור (למשל: סופרמרקט, משכורת)")
     with col_f2:
         amount = st.number_input("סכום (ש\"ח)", value=0.0, step=10.0)
     with col_f3:
@@ -58,7 +68,8 @@ with col_right:
     st.markdown("### 📥 הכנסות")
     df_income = df[df["סוג"] == "הכנסה"]
     if not df_income.empty:
-        st.dataframe(df_income[["תיאור", "סכום"]], use_container_width=True, hide_index=True)
+        styled_income = df_income[["תיאור", "סכום"]].style.apply(color_rows, axis=1)
+        st.dataframe(styled_income, use_container_width=True, hide_index=True)
         total_income = df_income["סכום"].sum()
         st.metric("סך הכל הכנסות", f"{total_income:,.2f} ₪")
     else:
@@ -66,10 +77,11 @@ with col_right:
 
 # --- טור שמאל: הוצאות (קבועות ומשתנות) ---
 with col_left:
-    st.markdown("### 📤 הוצאות (קבועות ומשתנות)")
+    st.markdown("### 📤 הוצאות (קבועות באדום, משתנות בירוק)")
     df_expense = df[df["סוג"].isin(["הוצאה קבועה", "הוצאה משתנה", "הוצאה"])]
     if not df_expense.empty:
-        st.dataframe(df_expense[["תיאור", "סכום", "סוג"]], use_container_width=True, hide_index=True)
+        styled_expense = df_expense[["תיאור", "סכום", "סוג"]].style.apply(color_rows, axis=1)
+        st.dataframe(styled_expense, use_container_width=True, hide_index=True)
         total_expense = df_expense["סכום"].sum()
         st.metric("📦 סך הכל הוצאות כלליות", f"{total_expense:,.2f} ₪")
     else:
@@ -80,15 +92,13 @@ st.divider()
 # --- אזור מחיקת שורה ספציפית ---
 st.subheader("🗑️ מחיקת שורה / תנועה")
 if not df.empty:
-    # יצירת רשימה של תיאורים לבחירה
     row_to_delete = st.selectbox("בחר תנועה למחיקה לפי התיאור שלה:", [None] + list(df["תיאור"].unique()))
     
     if row_to_delete:
         if st.button("מחק את התנועה הנבחרת"):
-            # מחיקת השורות התואמות את התיאור שנבחר
             df = df[df["תיאור"] != row_to_delete]
             df.to_csv(DATA_FILE, index=False)
-            st.success(def_del := f"התנועה '{row_to_delete}' נמחקה בהצלחה!")
+            st.success(f"התנועה '{row_to_delete}' נמחקה בהצלחה!")
             st.rerun()
 
 if st.button("איפוס כל הנתונים וחזרה להוצאות הקבועות הבסיסיות"):
