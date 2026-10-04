@@ -6,7 +6,7 @@ st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon=
 
 DATA_FILE = "budget_simple_data.csv"
 
-# הגדרת הרשימות המדויקות כולל מכולת בהוצאות המשתנות
+# הגדרת הרשימות המדויקות
 INCOME_LIST = ["העברה מדגני 1", "העברה מדגני 2", "הכנסה נוספת"]
 
 FIXED_EXPENSES = [
@@ -44,14 +44,16 @@ def get_type(cat):
     else:
         return "הוצאה משתנה"
 
-# טעינה או יצירה של קובץ הנתונים
+# טעינה או יצירה של קובץ הנתונים (בלי עמודת יום, שומרים רק חודש, קטגוריה, סכום, סוג)
 if os.path.exists(DATA_FILE):
     try:
         df = pd.read_csv(DATA_FILE)
+        if "יום" in df.columns:
+            df = df.drop(columns=["יום"])
     except:
-        df = pd.DataFrame(columns=["חודש", "יום", "קטגוריה", "סכום", "סוג"])
+        df = pd.DataFrame(columns=["חודש", "קטגוריה", "סכום", "סוג"])
 else:
-    df = pd.DataFrame(columns=["חודש", "יום", "קטגוריה", "סכום", "סוג"])
+    df = pd.DataFrame(columns=["חודש", "קטגוריה", "סכום", "סוג"])
 
 # כפתור איפוס בצד
 if os.path.exists(DATA_FILE):
@@ -63,7 +65,7 @@ st.title("💰 ניהול הכנסות והוצאות")
 
 selected_month = st.selectbox("בחר חודש:", MONTHS_LIST)
 
-# העברה אוטומטית של הוצאות קבועות מחודש קודם
+# העברה אוטומטית של הוצאות קבועות מחודש קודם אם אין נתונים לחודש הנוכחי
 df_m = df[df["חודש"] == selected_month] if not df.empty else pd.DataFrame()
 if df_m.empty and MONTHS_LIST.index(selected_month) > 0:
     prev_month = MONTHS_LIST[MONTHS_LIST.index(selected_month) - 1]
@@ -75,36 +77,36 @@ if df_m.empty and MONTHS_LIST.index(selected_month) > 0:
         df.to_csv(DATA_FILE, index=False)
         df_m = df[df["חודש"] == selected_month]
 
-# טופס הוספה / עדכון
-st.subheader(f"הוספת / עדכון נתון ל-{selected_month}")
+# טופס הוספה (מצטבר אוטומטית)
+st.subheader(f"הוספת סכום ל-{selected_month}")
 with st.form("add_form", clear_on_submit=True):
-    c1, c2, c3 = st.columns(3)
+    c1, c2 = st.columns(2)
     with c1:
-        day = st.selectbox("יום בחודש", list(range(1, 32)), index=1)
-    with c2:
         cat = st.selectbox("בחר פריט (הכנסה / הוצאה)", INCOME_LIST + FIXED_EXPENSES + VARIABLE_EXPENSES)
-    with c3:
-        amt = st.number_input("סכום (₪ - מספר שלם)", value=0, step=1, format="%d")
+    with c2:
+        amt = st.number_input("סכום להוספה (₪ - מספר שלם)", value=0, step=1, format="%d")
         
-    submitted = st.form_submit_button("שמור נתון")
+    submitted = st.form_submit_button("הוסף סכום")
     
-    if submitted:
+    if submitted and amt != 0:
         stype = get_type(cat)
-        if not df.empty:
-            df = df[~((df["חודש"] == selected_month) & (df["קטגוריה"] == cat))]
-        
-        new_row = pd.DataFrame([{"חודש": selected_month, "יום": int(day), "קטגוריה": cat, "סכום": int(amt), "סוג": stype}])
+        # הוספת שורה חדשה למאגר (כדי לאפשר מספר פעמים כמו מכולת)
+        new_row = pd.DataFrame([{"חודש": selected_month, "קטגוריה": cat, "סכום": int(amt), "סוג": stype}])
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_csv(DATA_FILE, index=False)
-        st.success("הנתון נשמר בהצלחה!")
+        st.success("הסכום נוסף בהצלחה!")
         st.rerun()
 
 st.divider()
 
-# רענון נתוני החודש
+# רענון נתוני החודש וקיבוץ/סכימה אוטומטית לפי קטגוריה
 df_current = df[df["חודש"] == selected_month] if not df.empty and "חודש" in df.columns else pd.DataFrame()
+
 if not df_current.empty:
-    df_current = df_current.sort_values(by="יום")
+    # סכימה אוטומטית של סכומים לאותה קטגוריה באותו חודש
+    df_grouped = df_current.groupby(["חודש", "קטגוריה", "סוג"], as_index=False)["סכום"].sum()
+else:
+    df_grouped = pd.DataFrame(columns=["חודש", "קטגוריה", "סוג", "סכום"])
 
 # הצגה ב-3 עמודות עם הצבעים המבוקשים: הכנסות בכחול, הוצאות קבועות באדום, הוצאות משתנות בירוק
 col_inc, col_fix, col_var = st.columns(3)
@@ -115,9 +117,9 @@ tot_var = 0
 
 with col_inc:
     st.markdown("<h3 style='color: blue;'>🔵 הכנסות</h3>", unsafe_allow_html=True)
-    df_i = df_current[df_current["סוג"] == "הכנסה"] if not df_current.empty else pd.DataFrame()
+    df_i = df_grouped[df_grouped["סוג"] == "הכנסה"] if not df_grouped.empty else pd.DataFrame()
     if not df_i.empty:
-        show_i = df_i[["יום", "קטגוריה", "סכום"]].copy()
+        show_i = df_i[["קטגוריה", "סכום"]].copy()
         show_i["סכום"] = show_i["סכום"].apply(lambda x: f"{int(x):,} ₪")
         st.dataframe(show_i, use_container_width=True, hide_index=True)
         tot_inc = int(df_i["סכום"].sum())
@@ -125,9 +127,9 @@ with col_inc:
 
 with col_fix:
     st.markdown("<h3 style='color: red;'>🔴 הוצאות קבועות</h3>", unsafe_allow_html=True)
-    df_f = df_current[df_current["סוג"] == "הוצאה קבועה"] if not df_current.empty else pd.DataFrame()
+    df_f = df_grouped[df_grouped["סוג"] == "הוצאה קבועה"] if not df_grouped.empty else pd.DataFrame()
     if not df_f.empty:
-        show_f = df_f[["יום", "קטגוריה", "סכום"]].copy()
+        show_f = df_f[["קטגוריה", "סכום"]].copy()
         show_f["סכום"] = show_f["סכום"].apply(lambda x: f"{int(x):,} ₪")
         st.dataframe(show_f, use_container_width=True, hide_index=True)
         tot_fix = int(df_f["סכום"].sum())
@@ -135,9 +137,9 @@ with col_fix:
 
 with col_var:
     st.markdown("<h3 style='color: green;'>🟢 הוצאות משתנות</h3>", unsafe_allow_html=True)
-    df_v = df_current[df_current["סוג"] == "הוצאה משתנה"] if not df_current.empty else pd.DataFrame()
+    df_v = df_grouped[df_grouped["סוג"] == "הוצאה משתנה"] if not df_grouped.empty else pd.DataFrame()
     if not df_v.empty:
-        show_v = df_v[["יום", "קטגוריה", "סכום"]].copy()
+        show_v = df_v[["קטגוריה", "סכום"]].copy()
         show_v["סכום"] = show_v["סכום"].apply(lambda x: f"{int(x):,} ₪")
         st.dataframe(show_v, use_container_width=True, hide_index=True)
         tot_var = int(df_v["סכום"].sum())
@@ -153,14 +155,14 @@ if savings >= 0:
 else:
     st.error(f"גירעון בחודש זה: **{savings:,} ₪**")
 
-# מחיקת פריט
+# אפשרות איפוס/מחיקת קטגוריה מסוימת מהחודש הנוכחי
 if not df_current.empty:
     st.divider()
-    st.subheader("🗑️ מחיקת פריט מהחודש")
-    item_to_del = st.selectbox("בחר פריט למחיקה:", [None] + list(df_current["קטגוריה"].unique()))
-    if item_to_del:
-        if st.button("מחק פריט נבחר"):
-            df = df[~((df["חודש"] == selected_month) & (df["קטגוריה"] == item_to_del))]
+    st.subheader("🗑️ איפוס או הסרת פריט מהחודש")
+    cat_to_clear = st.selectbox("בחר פריט לאיפוס המצטבר שלו:", [None] + list(df_current["קטגוריה"].unique()))
+    if cat_to_clear:
+        if st.button("אפס פריט זה בחודש הנוכחי"):
+            df = df[~((df["חודש"] == selected_month) & (df["קטגוריה"] == cat_to_clear))]
             df.to_csv(DATA_FILE, index=False)
-            st.success("הפריט נמחק!")
+            st.success("הפריט אופס!")
             st.rerun()
