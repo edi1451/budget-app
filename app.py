@@ -6,8 +6,8 @@ st.set_page_config(page_title="מעקב תקציב ותזרים אישי", page_
 
 DATA_FILE = "budget_data.csv"
 
-# הגדרת סוגי הקטגוריות לפי מה שביקשת
-INCOME_CATEGORIES = ["יתרת פתיחה", "העברה מדגני"]
+# הגדרת רשימות הקטגוריות המדויקות
+INCOME_CATEGORIES = ["יתרת פתיחה", "העברה מדגני", "הכנסה נוספת"]
 FIXED_EXPENSES = [
     "ויזה מקס",
     "ויזה כאל",
@@ -21,7 +21,7 @@ FIXED_EXPENSES = [
     "בט\"ל אדי",
     "בט\"ל נרה"
 ]
-VARIABLE_EXPENSES = ["הוצאות משתנות / שוטפות"]
+VARIABLE_EXPENSES = ["הוצאות משתנות / שוטפות", "אוכל וקניות", "בילויים ופנאי", "שונות"]
 
 ALL_CATEGORIES = INCOME_CATEGORIES + FIXED_EXPENSES + VARIABLE_EXPENSES
 
@@ -33,26 +33,35 @@ base_list = [
     "ספטמבר 2027", "אוקטובר 2027", "נובמבר 2027", "דצמבר 2027"
 ]
 
-# טעינת נתונים
+# פונקציית עזר לסוג קטגוריה
+def get_category_type(cat):
+    if cat in INCOME_CATEGORIES:
+        return "הכנסה"
+    elif cat in FIXED_EXPENSES:
+        return "הוצאה קבועה"
+    else:
+        return "הוצאה משתנה"
+
+# טעינת נתונים או יצירת מבנה התחלתי
 if os.path.exists(DATA_FILE):
     try:
         df = pd.read_csv(DATA_FILE)
-        if "יום בחודש" not in df.columns:
-            df["יום בחודש"] = 2
-        if "סוג" not in df.columns:
-            def get_type(cat):
-                if cat in INCOME_CATEGORIES: return "הכנסה"
-                elif cat in FIXED_EXPENSES: return "הוצאה קבועה"
-                else: return "הוצאה משתנה"
-            df["סוג"] = df["קטגוריה"].apply(get_type)
     except Exception:
         df = pd.DataFrame(columns=["חודש", "יום בחודש", "קטגוריה", "סכום", "סוג"])
 else:
     df = pd.DataFrame(columns=["חודש", "יום בחודש", "קטגוריה", "סכום", "סוג"])
 
+# וידוא עמודות תקינות
+if "חודש" not in df.columns: df["חודש"] = "אוקטובר 2026"
+if "יום בחודש" not in df.columns: df["יום בחודש"] = 2
+if "קטגוריה" not in df.columns: df["קטגוריה"] = "לא ידוע"
+if "סכום" not in df.columns: df["סכום"] = 0
+if "סוג" not in df.columns:
+    df["סוג"] = df["קטגוריה"].apply(get_category_type)
+
 # --- תפריט ניווט בצד ---
 st.sidebar.title("🧭 ניווט באפליקציה")
-page = st.sidebar.radio("בחר עמוד:", ["📅 ניהול תקציב חודשי", "📈 תזרים שנתי ומצטבר"])
+page = st.sidebar.radio("בחר עמוד:", ["📅 ניהול תקציב חודשי", "📈 דף תזרים שנתי"])
 
 if os.path.exists(DATA_FILE):
     if st.sidebar.button("🗑️ איפוס מלא של כל הנתונים"):
@@ -76,7 +85,25 @@ if page == "📅 ניהול תקציב חודשי":
 
     st.divider()
 
-    # טופס להוספת תנועה
+    # מנגנון העברת הוצאות קבועות מחודש קודם או אתחול בסיסי
+    # בדיקה האם קיימות הוצאות קבועות לחודש הנבחר, ואם לא - ננסה להעתיק מחודש קודם או ליצור ברירת מחדל
+    df_current = df[df["חודש"] == selected_month] if not df.empty else pd.DataFrame()
+    
+    if df_current.empty and len(all_months_list) > 1:
+        # מציאת חודש קודם ברשימה
+        curr_idx = all_months_list.index(selected_month)
+        if curr_idx > 0:
+            prev_month = all_months_list[curr_idx - 1]
+            df_prev_fixed = df[(df["חודש"] == prev_month) & (df["סוג"] == "הוצאה קבועה")]
+            if not df_prev_fixed.empty:
+                # שכפול ההוצאות הקבועות לחודש הנוכחי
+                copied_rows = df_prev_fixed.copy()
+                copied_rows["חודש"] = selected_month
+                df = pd.concat([df, copied_rows], ignore_index=True)
+                df.to_csv(DATA_FILE, index=False)
+                df_current = df[df["חודש"] == selected_month]
+
+    # טופס להוספת / עדכון תנועה
     st.subheader(f"➕ הוספת / עדכון נתונים עבור: {selected_month}")
     with st.form("budget_form", clear_on_submit=True):
         col_f1, col_f2, col_f3 = st.columns(3)
@@ -86,23 +113,19 @@ if page == "📅 ניהול תקציב חודשי":
         with col_f2:
             category = st.selectbox("בחר קטגוריה", ALL_CATEGORIES)
         with col_f3:
-            amount = st.number_input("סכום (ש\"ח - מספר שלם)", value=0, step=10, format="%d")
+            amount = st.number_input("סכום (₪ - מספר שלם)", value=0, step=10, format="%d")
             
         submitted = st.form_submit_button("הוסף / עדכן נתון")
 
         if submitted and amount != 0:
-            if category in INCOME_CATEGORIES:
-                trans_type = "הכנסה"
-            elif category in FIXED_EXPENSES:
-                trans_type = "הוצאה קבועה"
-            else:
-                trans_type = "הוצאה משתנה"
+            trans_type = get_category_type(category)
             
             if not df.empty and "חודש" in df.columns and "קטגוריה" in df.columns:
                 existing_row = df[(df["חודש"] == selected_month) & (df["קטגוריה"] == category)]
                 if not existing_row.empty:
-                    df.loc[(df["חודש"] == selected_month) & (df["קטגוריה"] == category), "סכום"] += int(amount)
+                    df.loc[(df["חודש"] == selected_month) & (df["קטגוריה"] == category), "סכום"] = int(amount)
                     df.loc[(df["חודש"] == selected_month) & (df["קטגוריה"] == category), "יום בחודש"] = int(day_of_month)
+                    df.loc[(df["חודש"] == selected_month) & (df["קטגוריה"] == category), "סוג"] = trans_type
                 else:
                     new_row = pd.DataFrame([{
                         "חודש": selected_month, 
@@ -128,14 +151,14 @@ if page == "📅 ניהול תקציב חודשי":
 
     st.divider()
 
-    # סינון נתונים לחודש הנבחר
+    # רענון הנתונים לחודש הנבחר לאחר עדכונים
     df_current_month = df[df["חודש"] == selected_month] if not df.empty and "חודש" in df.columns else pd.DataFrame()
     if not df_current_month.empty and "יום בחודש" in df_current_month.columns:
         df_current_month = df_current_month.sort_values(by="יום בחודש")
 
     st.subheader(f"📊 פירוט תקציב עבור {selected_month}")
 
-    # תצוגה לפי 3 קטגוריות צבעוניות: הכנסות (כחול), הוצאות קבועות (אדום), הוצאות משתנות (ירוק)
+    # תצוגה לפי 3 קטגוריות עם צבעים ייעודיים: הכנסות בכחול, הוצאות קבועות באדום, הוצאות משתנות בירוק
     col1, col2, col3 = st.columns(3)
 
     total_inc = 0
@@ -143,7 +166,7 @@ if page == "📅 ניהול תקציב חודשי":
     total_var = 0
 
     with col1:
-        st.markdown("### 🔵 הכנסות")
+        st.markdown("<h3 style='color: blue;'>🔵 הכנסות</h3>", unsafe_allow_html=True)
         df_inc = df_current_month[df_current_month["סוג"] == "הכנסה"] if not df_current_month.empty else pd.DataFrame()
         if not df_inc.empty:
             d_disp = df_inc[["יום בחודש", "קטגוריה", "סכום"]].copy()
@@ -153,7 +176,7 @@ if page == "📅 ניהול תקציב חודשי":
         st.metric("סך הכנסות", f"{total_inc:,} ₪")
 
     with col2:
-        st.markdown("### 🔴 הוצאות קבועות")
+        st.markdown("<h3 style='color: red;'>🔴 הוצאות קבועות</h3>", unsafe_allow_html=True)
         df_fix = df_current_month[df_current_month["סוג"] == "הוצאה קבועה"] if not df_current_month.empty else pd.DataFrame()
         if not df_fix.empty:
             d_disp = df_fix[["יום בחודש", "קטגוריה", "סכום"]].copy()
@@ -163,7 +186,7 @@ if page == "📅 ניהול תקציב חודשי":
         st.metric("סך הוצאות קבועות", f"{total_fixed:,} ₪")
 
     with col3:
-        st.markdown("### 🟢 הוצאות משתנות")
+        st.markdown("<h3 style='color: green;'>🟢 הוצאות משתנות</h3>", unsafe_allow_html=True)
         df_var = df_current_month[df_current_month["סוג"] == "הוצאה משתנה"] if not df_current_month.empty else pd.DataFrame()
         if not df_var.empty:
             d_disp = df_var[["יום בחודש", "קטגוריה", "סכום"]].copy()
@@ -176,11 +199,11 @@ if page == "📅 ניהול תקציב חודשי":
 
     # שורה נוספת: הכנסות פחות הוצאות = העברה לחיסכון / יתרה
     savings_transfer = total_inc - (total_fixed + total_var)
-    st.subheader("🪙 סיכום: הכנסות פחות הוצאות (העברה לחיסכון)")
+    st.subheader("🪙 שורה נוספת: הכנסות פחות הוצאות (העברה לחיסכון)")
     if savings_transfer >= 0:
-        st.success(f"שורה נוספת (הכנסות - הוצאות) = **{savings_transfer:,} ₪**")
+        st.success(f"העברה לחיסכון = **{savings_transfer:,} ₪**")
     else:
-        st.error(f"שורה נוספת (גירעון) = **{savings_transfer:,} ₪**")
+        st.error(f"גירעון = **{savings_transfer:,} ₪**")
 
     st.divider()
 
@@ -197,11 +220,11 @@ if page == "📅 ניהול תקציב חודשי":
 
 
 # ==========================================
-# עמוד 2: תזרים שנתי ומצטבר
+# עמוד 2: דף תזרים שנתי
 # ==========================================
-elif page == "📈 תזרים שנתי ומצטבר":
-    st.title("📈 תזרים שנתי ומצטבר")
-    st.markdown("טבלה זו מרכזת את כל החודשים לאורך תקופת המעקב.")
+elif page == "📈 דף תזרים שנתי":
+    st.title("📈 דף תזרים שנתי ומצטבר")
+    st.markdown("עמוד זה מציג את סיכום התזרים והנתונים המצטברים לאורך כל החודשים.")
 
     if df.empty or "חודש" not in df.columns:
         st.info("עדיין אין נתונים להצגת התזרים השנתי.")
