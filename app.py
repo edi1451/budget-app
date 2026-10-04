@@ -6,8 +6,15 @@ st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon=
 
 DATA_FILE = "budget_simple_data.csv"
 
-# הגדרת הרשימות המדויקות
-INCOME_LIST = ["העברה מדגני 1", "העברה מדגני 2", "הכנסה נוספת"]
+# הגדרת ההכנסות וההוצאות המדויקות כולל לוטו בהוצאות המשתנות
+INCOME_LIST = [
+    "מיגדל",
+    "כלל",
+    "הראל",
+    "העברה מדגני",
+    "העברה לחשבון",
+    "הכנסה מיוחדת"
+]
 
 FIXED_EXPENSES = [
     "דיור",
@@ -25,6 +32,7 @@ VARIABLE_EXPENSES = [
     "פילטיס",
     "ספר-מישל",
     "מכולת",
+    "לוטו",
     "שונות",
     "אחר"
 ]
@@ -44,7 +52,7 @@ def get_type(cat):
     else:
         return "הוצאה משתנה"
 
-# טעינה או יצירה של קובץ הנתונים (בלי עמודת יום, שומרים רק חודש, קטגוריה, סכום, סוג)
+# טעינה או יצירה של קובץ הנתונים
 if os.path.exists(DATA_FILE):
     try:
         df = pd.read_csv(DATA_FILE)
@@ -90,7 +98,6 @@ with st.form("add_form", clear_on_submit=True):
     
     if submitted and amt != 0:
         stype = get_type(cat)
-        # הוספת שורה חדשה למאגר (כדי לאפשר מספר פעמים כמו מכולת)
         new_row = pd.DataFrame([{"חודש": selected_month, "קטגוריה": cat, "סכום": int(amt), "סוג": stype}])
         df = pd.concat([df, new_row], ignore_index=True)
         df.to_csv(DATA_FILE, index=False)
@@ -103,7 +110,6 @@ st.divider()
 df_current = df[df["חודש"] == selected_month] if not df.empty and "חודש" in df.columns else pd.DataFrame()
 
 if not df_current.empty:
-    # סכימה אוטומטית של סכומים לאותה קטגוריה באותו חודש
     df_grouped = df_current.groupby(["חודש", "קטגוריה", "סוג"], as_index=False)["סכום"].sum()
 else:
     df_grouped = pd.DataFrame(columns=["חודש", "קטגוריה", "סוג", "סכום"])
@@ -155,10 +161,10 @@ if savings >= 0:
 else:
     st.error(f"גירעון בחודש זה: **{savings:,} ₪**")
 
-# אפשרות איפוס/מחיקת קטגוריה מסוימת מהחודש הנוכחי
+# אפשרות איפוס/מחיקת פריט מסוים מהחודש הנוכחי
 if not df_current.empty:
     st.divider()
-    st.subheader("🗑️ איפוס או הסרת פריט מהחודש")
+    st.subheader("🗑 איפוס או הסרת פריט מהחודש")
     cat_to_clear = st.selectbox("בחר פריט לאיפוס המצטבר שלו:", [None] + list(df_current["קטגוריה"].unique()))
     if cat_to_clear:
         if st.button("אפס פריט זה בחודש הנוכחי"):
