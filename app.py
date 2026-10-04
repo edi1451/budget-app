@@ -52,34 +52,31 @@ def color_rows(row):
         return ['color: #0275d8; font-weight: bold'] * len(row)  # כחול
     return [''] * len(row)
 
-# טופס להוספת תנועה חדשה לפי קטגוריות מובנות
+# טופס להוספת תנועה חדשה לפי קטגוריות מובנות בעברית
 st.subheader(f"➕ הוספת / עדכון סכום עבור: {selected_month}")
 with st.form("budget_form", clear_on_submit=True):
     col_f1, col_f2, col_f3 = st.columns(3)
     with col_f1:
         trans_type = st.selectbox("סוג תנועה", ["הוצאה משתנה", "הוצאה קבועה", "הכנסה"])
     with col_f2:
-        # קטגוריות מובנות לבחירה מהירה ומסודרת
+        # קטגוריות מובנות בעברית
         if trans_type == "הוצאה קבועה":
-            category = st.selectbox("בחר קטגוריה", ["שכירות / משכנתא", "ארנונה", "חשמל ומים", "אינטרנט וסלולר", "ביטוחים", "הלוואות", "אחר (קבוע)"])
+            category = st.selectbox("בחר קטגוריה", ["שכירות / משכנתא", "ועד בית", "ארנונה", "חשמל ומים", "אינטרנט וסלולר", "ביטוחים", "ביטוח רכב", "הלוואות", "הלוואת אשראי", "אחר (קבוע)"])
         elif trans_type == "הוצאה משתנה":
-            category = st.selectbox("בחר קטגוריה", ["סופרמרקט / מכולת", "דלק / תחבורה ציבורית", "בילויים במסעדות", "פארק / קניות שוטפות", "בריאות ופארם", "אחר (משתנה)"])
+            category = st.selectbox("בחר קטגוריה", ["סופרמרקט / מכולת", "ספוטיפאי", "נטפליקס", "ספר-מישל", "פילטיס", "גולי", "דלק", "טלפונים ניידים", "קופ\"ח ותרופות", "תחבורה ציבורית", "בילויים במסעדות", "קניות שוטפות", "שונות", "אחר (משתנה)"])
         else:
             category = st.selectbox("בחר קטגוריה", ["משכורת ראשית", "משכורת נוספת / פרילנס", "החזר מס / מענקים", "הכנסה אחרת"])
     with col_f3:
         amount = st.number_input("סכום להוספה (ש\"ח)", value=0, step=10, format="%d")
         
-    submitted = st.form_submit_button("הוסף / עדכן סכום")
+    submitted = st.form_submit_button("הוסף / עדכון סכום")
 
     if submitted and amount > 0:
-        # בדיקה אם הקטגוריה כבר קיימת בחודש הזה - אם כן, מצטברים או מוסיפים כשורה מאוחדת
         if not df.empty and "חודש" in df.columns and "תיאור" in df.columns:
             existing_row = df[(df["חודש"] == selected_month) & (df["תיאור"] == category) & (df["סוג"] == trans_type)]
             if not existing_row.empty:
-                # מעדכן את הסכום הקיים בתוספת הסכום החדש
                 df.loc[(df["חודש"] == selected_month) & (df["תיאור"] == category) & (df["סוג"] == trans_type), "סכום"] += int(amount)
             else:
-                # מוסיף שורה חדשה
                 new_row = pd.DataFrame([{"חודש": selected_month, "תיאור": category, "סכום": int(amount), "סוג": trans_type}])
                 df = pd.concat([df, new_row], ignore_index=True)
         else:
@@ -100,7 +97,6 @@ if available_months:
                 for _, r in fixed_to_copy.iterrows():
                     cat_name = r["תיאור"]
                     cat_amount = int(r["סכום"])
-                    # בדיקה אם הקטגוריה כבר קיימת בחודש היעד
                     existing_target = df[(df["חודש"] == selected_month) & (df["תיאור"] == cat_name) & (df["סוג"] == "הוצאה קבועה")]
                     if existing_target.empty:
                         new_r = pd.DataFrame([{"חודש": selected_month, "תיאור": cat_name, "סכום": cat_amount, "סוג": "הוצאה קבועה"}])
@@ -164,7 +160,7 @@ else:
 
 st.divider()
 
-# --- אזור מחיקת קטגוריה / שורה מהחודש הנבחר ---
+# --- אזור מחיקת קטגוריה מהחודש הנבחר ---
 st.subheader("🗑️ מחיקת קטגוריה מהחודש הנבחר")
 if not df_current_month.empty:
     category_to_delete = st.selectbox("בחר קטגוריה למחיקה:", [None] + list(df_current_month["תיאור"].unique()))
