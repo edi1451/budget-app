@@ -4,7 +4,7 @@ import os
 
 st.set_page_config(page_title="מעקב תקציב ותזרים אישי", page_icon="💰", layout="wide")
 
-DATA_FILE = "budget_data.csv
+DATA_FILE = "budget_data.csv"
 
 # רשימת הקטגוריות הקבועות שביקשת
 FIXED_CATEGORIES = [
