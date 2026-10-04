@@ -27,6 +27,9 @@ FIXED_CATEGORIES = [
 if os.path.exists(DATA_FILE):
     try:
         df = pd.read_csv(DATA_FILE)
+        # תיקון אוטומטי אם העמודה "יום בחודש" חסרה בקובץ הקיים
+        if "יום בחודש" not in df.columns:
+            df["יום בחודש"] = 1
     except Exception:
         df = pd.DataFrame(columns=["חודש", "יום בחודש", "קטגוריה", "סכום"])
 else:
@@ -103,7 +106,7 @@ if page == "📅 ניהול תקציב חודשי":
     # סינון הנתונים לפי החודש הנבחר בלבד ומיון לפי יום בחודש
     df_current_month = df[df["חודש"] == selected_month] if not df.empty and "חודש" in df.columns else pd.DataFrame(columns=["חודש", "יום בחודש", "קטגוריה", "סכום"])
     
-    if not df_current_month.empty:
+    if not df_current_month.empty and "יום בחודש" in df_current_month.columns:
         df_current_month = df_current_month.sort_values(by="יום בחודש")
 
     st.subheader(f"📊 פירוט תנועות עבור {selected_month}")
