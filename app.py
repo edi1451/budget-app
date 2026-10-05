@@ -6,7 +6,7 @@ st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon=
 
 DATA_FILE = "budget_simple_data.csv"
 
-# הגדרת ההכנסות וההוצאות המדויקות כולל לוטו בהוצאות המשתנות
+# הגדרת ההכנסות וההוצאות המדויקות
 INCOME_LIST = [
     "מיגדל",
     "כלל",
@@ -153,8 +153,14 @@ with col_var:
 
 st.divider()
 
+# הצגת סה"כ הוצאות באדום (קבועות + משתנות)
+total_expenses = tot_fix + tot_var
+st.markdown(f"<h3 style='color: red;'>🔴 סה\"כ הוצאות (קבועות + משתנות): {total_expenses:,} ₪</h3>", unsafe_allow_html=True)
+
+st.divider()
+
 # שורת סיכום: הכנסות פחות הוצאות = העברה לחיסכון
-savings = tot_inc - (tot_fix + tot_var)
+savings = tot_inc - total_expenses
 st.subheader("🪙 שורת סיכום: הכנסות פחות הוצאות (העברה לחיסכון)")
 if savings >= 0:
     st.success(f"העברה לחיסכון: **{savings:,} ₪**")
