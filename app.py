@@ -5,48 +5,33 @@ import json
 
 st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon="💰", layout="wide")
 
-# הגדרת כיוון כתיבה מימין לשמאל (RTL) לכל חלקי האפליקציה והטבלאות
+# הגדרת כיוון כתיבה מימין לשמאל (RTL) לכל האפליקציה
 st.markdown("""
     <style>
-    /* כיוון כתיבה ויישור לכל האפליקציה */
     html, body, [data-testid="stAppViewContainer"], .main, .stApp {
         direction: rtl !important;
         text-align: right !important;
     }
     
-    /* יישור תפריט הצד (Sidebar) */
     [data-testid="stSidebar"], [data-testid="stSidebar"] * {
         direction: rtl !important;
         text-align: right !important;
     }
     
-    /* יישור טבלאות ושדות עריכה */
-    .stDataFrame, div[data-testid="stTable"], div[data-testid="stDataEditor"] {
-        direction: rtl !important;
-        text-align: right !important;
-    }
-
-    /* התאמת כיוון הטבלה הפנימית */
-    [data-testid="stDataEditor"] [role="grid"] {
-        direction: rtl !important;
-    }
-    
-    /* יישור כותרות וטקסטים */
     h1, h2, h3, h4, h5, h6, p, label, div {
         text-align: right !important;
     }
 
-    /* התאמת כרטיסיות הנתונים (Metrics) */
     [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
         text-align: right !important;
         justify-content: flex-end !important;
     }
-
-    /* צבעים מותאמים */
-    .income { color: #0066cc; font-weight: bold; }
-    .fixed-expense { color: #cc0000; font-weight: bold; }
-    .var-expense { color: #009933; font-weight: bold; }
-    .savings { color: #7a00cc; font-weight: bold; font-size: 20px; }
+    
+    /* יישור שדות קלט מימין לשמאל */
+    input {
+        text-align: right !important;
+        direction: rtl !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -138,57 +123,61 @@ if uploaded_backup is not None:
 
 st.header(f"ניהול תקציב עבור: {selected_month}")
 
-col1, col2 = st.columns(2)
-
-# הגדרת מבנה העמודות המדויק לכל טבלה (תיאור מימין, סכום משמאל)
-columns_config = {
-    "תיאור": st.column_config.TextColumn("תיאור", width="medium"),
-    "סכום (₪)": st.column_config.NumberColumn("סכום (₪)", format="%d", width="small")
-}
-columns_order = ["תיאור", "סכום (₪)"]
-
 current_data = st.session_state.budget_data[selected_month]
 
+# פונקציה להצגת טבלה מבוססת עמודות (תיאור מימין, סכום משמאל)
+def render_category_inputs(category_name, items_list, key_prefix):
+    st.markdown(f"### {category_name}")
+    
+    # כותרות הטבלה
+    hdr_col1, hdr_col2 = st.columns([3, 2])
+    with hdr_col1:
+        st.markdown("**תיאור**")
+    with hdr_col2:
+        st.markdown("**סכום (₪)**")
+        
+    updated_items = []
+    total = 0
+    
+    for idx, item in enumerate(items_list):
+        c1, c2 = st.columns([3, 2])
+        with c1:
+            desc = st.text_input(
+                label=f"desc_{key_prefix}_{idx}",
+                value=item["תיאור"],
+                key=f"desc_{key_prefix}_{selected_month}_{idx}",
+                label_visibility="collapsed"
+            )
+        with c2:
+            val = st.number_input(
+                label=f"val_{key_prefix}_{idx}",
+                value=int(item["סכום (₪)"]),
+                step=1,
+                format="%d",
+                key=f"val_{key_prefix}_{selected_month}_{idx}",
+                label_visibility="collapsed"
+            )
+        updated_items.append({"תיאור": desc, "סכום (₪)": int(val)})
+        total += int(val)
+        
+    return updated_items, total
+
+col1, col2 = st.columns(2)
+
 with col1:
-    st.markdown("### 🔵 הכנסות")
-    df_income = pd.DataFrame(current_data["income"])
-    edited_income = st.data_editor(
-        df_income, 
-        column_order=columns_order,
-        column_config=columns_config,
-        num_rows="dynamic", 
-        key=f"income_{selected_month}"
-    )
-    current_data["income"] = edited_income.to_dict('records')
+    updated_income, total_income = render_category_inputs("🔵 הכנסות", current_data["income"], "inc")
+    current_data["income"] = updated_income
 
 with col2:
-    st.markdown("### 🔴 הוצאות קבועות")
-    df_fixed = pd.DataFrame(current_data["fixed"])
-    edited_fixed = st.data_editor(
-        df_fixed, 
-        column_order=columns_order,
-        column_config=columns_config,
-        num_rows="dynamic", 
-        key=f"fixed_{selected_month}"
-    )
-    current_data["fixed"] = edited_fixed.to_dict('records')
+    updated_fixed, total_fixed = render_category_inputs("🔴 הוצאות קבועות", current_data["fixed"], "fix")
+    current_data["fixed"] = updated_fixed
 
-st.markdown("### 🟢 הוצאות משתנות")
-df_var = pd.DataFrame(current_data["var"])
-edited_var = st.data_editor(
-    df_var, 
-    column_order=columns_order,
-    column_config=columns_config,
-    num_rows="dynamic", 
-    key=f"var_{selected_month}"
-)
-current_data["var"] = edited_var.to_dict('records')
+st.divider()
 
-# חישובים (מספרים שלמים בלבד)
-total_income = int(edited_income["סכום (₪)"].sum()) if not edited_income.empty else 0
-total_fixed = int(edited_fixed["סכום (₪)"].sum()) if not edited_fixed.empty else 0
-total_var = int(edited_var["סכום (₪)"].sum()) if not edited_var.empty else 0
+updated_var, total_var = render_category_inputs("🟢 הוצאות משתנות", current_data["var"], "var")
+current_data["var"] = updated_var
 
+# חישוב יתרה להעברה לחיסכון
 total_expenses = total_fixed + total_var
 transfer_to_savings = total_income - total_expenses
 
