@@ -26,7 +26,7 @@ st.markdown("""
         text-align: right !important;
     }
 
-    /* הפיכת כיוון עמודות הטבלה מימין לשמאל */
+    /* התאמת כיוון הטבלה הפנימית */
     [data-testid="stDataEditor"] [role="grid"] {
         direction: rtl !important;
     }
@@ -140,17 +140,22 @@ st.header(f"ניהול תקציב עבור: {selected_month}")
 
 col1, col2 = st.columns(2)
 
-current_data = st.session_state.budget_data[selected_month]
+# הגדרת מבנה העמודות המדויק לכל טבלה (תיאור מימין, סכום משמאל)
+columns_config = {
+    "תיאור": st.column_config.TextColumn("תיאור", width="medium"),
+    "סכום (₪)": st.column_config.NumberColumn("סכום (₪)", format="%d", width="small")
+}
+columns_order = ["תיאור", "סכום (₪)"]
 
-# הגדרת סדר עמודות מפורש בטבלאות
-cols_order = ["תיאור", "סכום (₪)"]
+current_data = st.session_state.budget_data[selected_month]
 
 with col1:
     st.markdown("### 🔵 הכנסות")
     df_income = pd.DataFrame(current_data["income"])
     edited_income = st.data_editor(
         df_income, 
-        column_order=cols_order,
+        column_order=columns_order,
+        column_config=columns_config,
         num_rows="dynamic", 
         key=f"income_{selected_month}"
     )
@@ -161,7 +166,8 @@ with col2:
     df_fixed = pd.DataFrame(current_data["fixed"])
     edited_fixed = st.data_editor(
         df_fixed, 
-        column_order=cols_order,
+        column_order=columns_order,
+        column_config=columns_config,
         num_rows="dynamic", 
         key=f"fixed_{selected_month}"
     )
@@ -171,7 +177,8 @@ st.markdown("### 🟢 הוצאות משתנות")
 df_var = pd.DataFrame(current_data["var"])
 edited_var = st.data_editor(
     df_var, 
-    column_order=cols_order,
+    column_order=columns_order,
+    column_config=columns_config,
     num_rows="dynamic", 
     key=f"var_{selected_month}"
 )
