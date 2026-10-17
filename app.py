@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import json
 
 st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon="💰", layout="wide")
 
@@ -39,48 +40,88 @@ while current <= end_date:
 
 selected_month = st.sidebar.selectbox("בחר חודש", months)
 
+# ניהול נתונים ב-st.session_state כדי לאפשר שמירה וגיבוי
+if 'budget_data' not in st.session_state:
+    st.session_state.budget_data = {}
+
+for m in months:
+    if m not in st.session_state.budget_data:
+        st.session_state.budget_data[m] = {
+            "income": [
+                {"תיאור": "העברה מדגני", "סכום (₪)": 0},
+                {"תיאור": "פנסיה מיגדל", "סכום (₪)": 0},
+                {"תיאור": "פנסיה כלל", "סכום (₪)": 0},
+                {"תיאור": "פנסיה פסגות הראל", "סכום (₪)": 0},
+                {"תיאור": "העברת הלוואה", "סכום (₪)": 0},
+                {"תיאור": "ביטוח לאומי אדי", "סכום (₪)": 0},
+                {"תיאור": "ביטוח לאומי נרה", "סכום (₪)": 0},
+                {"תיאור": "מיוחד", "סכום (₪)": 0}
+            ],
+            "fixed": [
+                {"תיאור": "הוצאות דיור", "סכום (₪)": 0},
+                {"תיאור": "טלפונים ניידים", "סכום (₪)": 0},
+                {"תיאור": "החזר הלוואת אשראי", "סכום (₪)": 0},
+                {"תיאור": "ביטוח מכונית", "סכום (₪)": 0},
+                {"תיאור": "ספוטיפאיי", "סכום (₪)": 0},
+                {"תיאור": "נטפליקס", "סכום (₪)": 0}
+            ],
+            "var": [
+                {"תיאור": "מכולת+נספרס", "סכום (₪)": 0},
+                {"תיאור": "תרופות ותוספים", "סכום (₪)": 0},
+                {"תיאור": "דלק", "סכום (₪)": 0},
+                {"תיאור": "ספר מישל", "סכום (₪)": 0},
+                {"תיאור": "גולי", "סכום (₪)": 0},
+                {"תיאור": "אראלה", "סכום (₪)": 0},
+                {"תיאור": "שונות", "סכום (₪)": 0},
+                {"תיאור": "אחר", "סכום (₪)": 0}
+            ]
+        }
+
+st.sidebar.divider()
+st.sidebar.subheader("💾 גיבוי ושחזור נתונים")
+
+# כפתור גיבוי (ייצוא)
+backup_json = json.dumps(st.session_state.budget_data, ensure_ascii=False, indent=4)
+st.sidebar.download_button(
+    label="📥 הורד גיבוי נתונים",
+    data=backup_json,
+    file_name=f"budget_backup_{datetime.now().strftime('%Y-%m-%d')}.json",
+    mime="application/json"
+)
+
+# כפתור טעינה מגיבוי (ייבוא)
+uploaded_backup = st.sidebar.file_uploader("📤 טען קובץ גיבוי", type=["json"])
+if uploaded_backup is not None:
+    try:
+        loaded_data = json.load(uploaded_backup)
+        st.session_state.budget_data = loaded_data
+        st.sidebar.success("הגיבוי נטען בהצלחה!")
+        st.rerun()
+    except Exception as e:
+        st.sidebar.error("שגיאה בטעינת הקובץ.")
+
 st.header(f"ניהול תקציב עבור: {selected_month}")
 
 col1, col2 = st.columns(2)
 
+current_data = st.session_state.budget_data[selected_month]
+
 with col1:
     st.markdown("### 🔵 הכנסות")
-    income_data = pd.DataFrame([
-        {"תיאור": "העברה מדגני", "סכום (₪)": 0},
-        {"תיאור": "פנסיה מיגדל", "סכום (₪)": 0},
-        {"תיאור": "פנסיה כלל", "סכום (₪)": 0},
-        {"תיאור": "פנסיה פסגות הראל", "סכום (₪)": 0},
-        {"תיאור": "העברת הלוואה", "סכום (₪)": 0},
-        {"תיאור": "ביטוח לאומי אדי", "סכום (₪)": 0},
-        {"תיאור": "ביטוח לאומי נרה", "סכום (₪)": 0},
-        {"תיאור": "מיוחד", "סכום (₪)": 0}
-    ])
-    edited_income = st.data_editor(income_data, num_rows="dynamic", key=f"income_{selected_month}")
+    df_income = pd.DataFrame(current_data["income"])
+    edited_income = st.data_editor(df_income, num_rows="dynamic", key=f"income_{selected_month}")
+    current_data["income"] = edited_income.to_dict('records')
 
 with col2:
     st.markdown("### 🔴 הוצאות קבועות")
-    fixed_exp_data = pd.DataFrame([
-        {"תיאור": "הוצאות דיור", "סכום (₪)": 0},
-        {"תיאור": "טלפונים ניידים", "סכום (₪)": 0},
-        {"תיאור": "החזר הלוואת אשראי", "סכום (₪)": 0},
-        {"תיאור": "ביטוח מכונית", "סכום (₪)": 0},
-        {"תיאור": "ספוטיפאיי", "סכום (₪)": 0},
-        {"תיאור": "נטפליקס", "סכום (₪)": 0}
-    ])
-    edited_fixed = st.data_editor(fixed_exp_data, num_rows="dynamic", key=f"fixed_{selected_month}")
+    df_fixed = pd.DataFrame(current_data["fixed"])
+    edited_fixed = st.data_editor(df_fixed, num_rows="dynamic", key=f"fixed_{selected_month}")
+    current_data["fixed"] = edited_fixed.to_dict('records')
 
 st.markdown("### 🟢 הוצאות משתנות")
-var_exp_data = pd.DataFrame([
-    {"תיאור": "מכולת+נספרס", "סכום (₪)": 0},
-    {"תיאור": "תרופות ותוספים", "סכום (₪)": 0},
-    {"תיאור": "דלק", "סכום (₪)": 0},
-    {"תיאור": "ספר מישל", "סכום (₪)": 0},
-    {"תיאור": "גולי", "סכום (₪)": 0},
-    {"תיאור": "אראלה", "סכום (₪)": 0},
-    {"תיאור": "שונות", "סכום (₪)": 0},
-    {"תיאור": "אחר", "סכום (₪)": 0}
-])
-edited_var = st.data_editor(var_exp_data, num_rows="dynamic", key=f"var_{selected_month}")
+df_var = pd.DataFrame(current_data["var"])
+edited_var = st.data_editor(df_var, num_rows="dynamic", key=f"var_{selected_month}")
+current_data["var"] = edited_var.to_dict('records')
 
 # חישובים (מספרים שלמים בלבד)
 total_income = int(edited_income["סכום (₪)"].sum()) if not edited_income.empty else 0
