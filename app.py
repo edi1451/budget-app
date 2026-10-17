@@ -25,6 +25,11 @@ st.markdown("""
         direction: rtl !important;
         text-align: right !important;
     }
+
+    /* הפיכת כיוון עמודות הטבלה מימין לשמאל */
+    [data-testid="stDataEditor"] [role="grid"] {
+        direction: rtl !important;
+    }
     
     /* יישור כותרות וטקסטים */
     h1, h2, h3, h4, h5, h6, p, label, div {
@@ -137,21 +142,39 @@ col1, col2 = st.columns(2)
 
 current_data = st.session_state.budget_data[selected_month]
 
+# הגדרת סדר עמודות מפורש בטבלאות
+cols_order = ["תיאור", "סכום (₪)"]
+
 with col1:
     st.markdown("### 🔵 הכנסות")
-    df_income = pd.DataFrame(current_data["income"])[["תיאור", "סכום (₪)"]]
-    edited_income = st.data_editor(df_income, num_rows="dynamic", key=f"income_{selected_month}")
+    df_income = pd.DataFrame(current_data["income"])
+    edited_income = st.data_editor(
+        df_income, 
+        column_order=cols_order,
+        num_rows="dynamic", 
+        key=f"income_{selected_month}"
+    )
     current_data["income"] = edited_income.to_dict('records')
 
 with col2:
     st.markdown("### 🔴 הוצאות קבועות")
-    df_fixed = pd.DataFrame(current_data["fixed"])[["תיאור", "סכום (₪)"]]
-    edited_fixed = st.data_editor(df_fixed, num_rows="dynamic", key=f"fixed_{selected_month}")
+    df_fixed = pd.DataFrame(current_data["fixed"])
+    edited_fixed = st.data_editor(
+        df_fixed, 
+        column_order=cols_order,
+        num_rows="dynamic", 
+        key=f"fixed_{selected_month}"
+    )
     current_data["fixed"] = edited_fixed.to_dict('records')
 
 st.markdown("### 🟢 הוצאות משתנות")
-df_var = pd.DataFrame(current_data["var"])[["תיאור", "סכום (₪)"]]
-edited_var = st.data_editor(df_var, num_rows="dynamic", key=f"var_{selected_month}")
+df_var = pd.DataFrame(current_data["var"])
+edited_var = st.data_editor(
+    df_var, 
+    column_order=cols_order,
+    num_rows="dynamic", 
+    key=f"var_{selected_month}"
+)
 current_data["var"] = edited_var.to_dict('records')
 
 # חישובים (מספרים שלמים בלבד)
