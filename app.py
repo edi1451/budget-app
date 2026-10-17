@@ -127,8 +127,8 @@ current_data = st.session_state.budget_data[selected_month]
 
 # הגדרת עמודות עם פורמט מפריד אלפים מפורש
 column_configuration = {
-    "תיאור": st.column_config.TextColumn("תיאור"),
-    "סכום (₪)": st.column_config.NumberColumn("סכום (₪)", format="%,d")
+    "תיאור": st.column_config.TextColumn("תיאור", required=True),
+    "סכום (₪)": st.column_config.NumberColumn("סכום (₪)", format="%,d", default=0)
 }
 
 col1, col2 = st.columns(2)
@@ -141,7 +141,7 @@ with col1:
         column_order=["תיאור", "סכום (₪)"],
         column_config=column_configuration,
         num_rows="dynamic",
-        key=f"income_{selected_month}"
+        key=f"income_editor_{selected_month}"
     )
     current_data["income"] = edited_income.to_dict('records')
 
@@ -153,7 +153,7 @@ with col2:
         column_order=["תיאור", "סכום (₪)"],
         column_config=column_configuration,
         num_rows="dynamic",
-        key=f"fixed_{selected_month}"
+        key=f"fixed_editor_{selected_month}"
     )
     current_data["fixed"] = edited_fixed.to_dict('records')
 
@@ -164,14 +164,14 @@ edited_var = st.data_editor(
     column_order=["תיאור", "סכום (₪)"],
     column_config=column_configuration,
     num_rows="dynamic",
-    key=f"var_{selected_month}"
+    key=f"var_editor_{selected_month}"
 )
 current_data["var"] = edited_var.to_dict('records')
 
 # חישובים
-total_income = int(edited_income["סכום (₪)"].sum()) if not edited_income.empty else 0
-total_fixed = int(edited_fixed["סכום (₪)"].sum()) if not edited_fixed.empty else 0
-total_var = int(edited_var["סכום (₪)"].sum()) if not edited_var.empty else 0
+total_income = int(pd.to_numeric(edited_income["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_income.empty else 0
+total_fixed = int(pd.to_numeric(edited_fixed["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_fixed.empty else 0
+total_var = int(pd.to_numeric(edited_var["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_var.empty else 0
 
 total_expenses = total_fixed + total_var
 transfer_to_savings = total_income - total_expenses
