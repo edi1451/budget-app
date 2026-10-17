@@ -5,8 +5,25 @@ import json
 
 st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon="💰", layout="wide")
 
+# הגדרת כיוון כתיבה מימין לשמאל (RTL) לכל האפליקציה והטבלאות
 st.markdown("""
     <style>
+    /* כיוון כללי מימין לשמאל */
+    .main, .stApp {
+        direction: rtl;
+        text-align: right;
+    }
+    /* יישור תפריט צדדי מימין לשמאל */
+    [data-testid="stSidebar"] {
+        direction: rtl;
+        text-align: right;
+    }
+    /* התאמת טבלאות ויישור שורות */
+    .stDataFrame, div[data-testid="stTable"] {
+        direction: rtl;
+        text-align: right;
+    }
+    /* צבעים וכותרות */
     .income { color: #0066cc; font-weight: bold; }
     .fixed-expense { color: #cc0000; font-weight: bold; }
     .var-expense { color: #009933; font-weight: bold; }
@@ -40,7 +57,7 @@ while current <= end_date:
 
 selected_month = st.sidebar.selectbox("בחר חודש", months)
 
-# ניהול נתונים ב-st.session_state כדי לאפשר שמירה וגיבוי
+# ניהול נתונים ב-st.session_state
 if 'budget_data' not in st.session_state:
     st.session_state.budget_data = {}
 
@@ -80,7 +97,7 @@ for m in months:
 st.sidebar.divider()
 st.sidebar.subheader("💾 גיבוי ושחזור נתונים")
 
-# כפתור גיבוי (ייצוא)
+# כפתור גיבוי (ייצוא) בתפריט הצדדי
 backup_json = json.dumps(st.session_state.budget_data, ensure_ascii=False, indent=4)
 st.sidebar.download_button(
     label="📥 הורד גיבוי נתונים",
@@ -89,7 +106,7 @@ st.sidebar.download_button(
     mime="application/json"
 )
 
-# כפתור טעינה מגיבוי (ייבוא)
+# כפתור טעינה מגיבוי (ייבוא) בתפריט הצדדי
 uploaded_backup = st.sidebar.file_uploader("📤 טען קובץ גיבוי", type=["json"])
 if uploaded_backup is not None:
     try:
