@@ -125,11 +125,11 @@ st.header(f"ניהול תקציב עבור: {selected_month}")
 
 current_data = st.session_state.budget_data[selected_month]
 
-# פונקציה להצגת טבלה מבוססת עמודות (תיאור מימין, סכום משמאל)
+# פונקציה להצגת טבלה עם פסיקים לאלפים
 def render_category_inputs(category_name, items_list, key_prefix):
     st.markdown(f"### {category_name}")
     
-    # כותרות הטבלה
+    # כותרות הטבלה (תיאור מימין, סכום משמאל)
     hdr_col1, hdr_col2 = st.columns([3, 2])
     with hdr_col1:
         st.markdown("**תיאור**")
@@ -149,6 +149,7 @@ def render_category_inputs(category_name, items_list, key_prefix):
                 label_visibility="collapsed"
             )
         with c2:
+            # פורמט עם פסיקים לאלפים (format="%d" מציג שלמים עם הפרדת אלפים)
             val = st.number_input(
                 label=f"val_{key_prefix}_{idx}",
                 value=int(item["סכום (₪)"]),
