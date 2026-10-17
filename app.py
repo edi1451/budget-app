@@ -139,18 +139,18 @@ current_data = st.session_state.budget_data[selected_month]
 
 with col1:
     st.markdown("### 🔵 הכנסות")
-    df_income = pd.DataFrame(current_data["income"])
+    df_income = pd.DataFrame(current_data["income"])[["תיאור", "סכום (₪)"]]
     edited_income = st.data_editor(df_income, num_rows="dynamic", key=f"income_{selected_month}")
     current_data["income"] = edited_income.to_dict('records')
 
 with col2:
     st.markdown("### 🔴 הוצאות קבועות")
-    df_fixed = pd.DataFrame(current_data["fixed"])
+    df_fixed = pd.DataFrame(current_data["fixed"])[["תיאור", "סכום (₪)"]]
     edited_fixed = st.data_editor(df_fixed, num_rows="dynamic", key=f"fixed_{selected_month}")
     current_data["fixed"] = edited_fixed.to_dict('records')
 
 st.markdown("### 🟢 הוצאות משתנות")
-df_var = pd.DataFrame(current_data["var"])
+df_var = pd.DataFrame(current_data["var"])[["תיאור", "סכום (₪)"]]
 edited_var = st.data_editor(df_var, num_rows="dynamic", key=f"var_{selected_month}")
 current_data["var"] = edited_var.to_dict('records')
 
