@@ -5,25 +5,39 @@ import json
 
 st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon="💰", layout="wide")
 
-# הגדרת כיוון כתיבה מימין לשמאל (RTL) לכל האפליקציה והטבלאות
+# הגדרת כיוון כתיבה מימין לשמאל (RTL) לכל חלקי האפליקציה והטבלאות
 st.markdown("""
     <style>
-    /* כיוון כללי מימין לשמאל */
-    .main, .stApp {
-        direction: rtl;
-        text-align: right;
+    /* כיוון כתיבה ויישור לכל האפליקציה */
+    html, body, [data-testid="stAppViewContainer"], .main, .stApp {
+        direction: rtl !important;
+        text-align: right !important;
     }
-    /* יישור תפריט צדדי מימין לשמאל */
-    [data-testid="stSidebar"] {
-        direction: rtl;
-        text-align: right;
+    
+    /* יישור תפריט הצד (Sidebar) */
+    [data-testid="stSidebar"], [data-testid="stSidebar"] * {
+        direction: rtl !important;
+        text-align: right !important;
     }
-    /* התאמת טבלאות ויישור שורות */
-    .stDataFrame, div[data-testid="stTable"] {
-        direction: rtl;
-        text-align: right;
+    
+    /* יישור טבלאות ושדות עריכה */
+    .stDataFrame, div[data-testid="stTable"], div[data-testid="stDataEditor"] {
+        direction: rtl !important;
+        text-align: right !important;
     }
-    /* צבעים וכותרות */
+    
+    /* יישור כותרות וטקסטים */
+    h1, h2, h3, h4, h5, h6, p, label, div {
+        text-align: right !important;
+    }
+
+    /* התאמת כרטיסיות הנתונים (Metrics) */
+    [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
+        text-align: right !important;
+        justify-content: flex-end !important;
+    }
+
+    /* צבעים מותאמים */
     .income { color: #0066cc; font-weight: bold; }
     .fixed-expense { color: #cc0000; font-weight: bold; }
     .var-expense { color: #009933; font-weight: bold; }
@@ -55,7 +69,6 @@ while current <= end_date:
     else:
         current = datetime(current.year, current.month + 1, 1)
 
-# תפריט צדדי לבחירת חודש
 selected_month = st.sidebar.selectbox("בחר חודש", months)
 
 # ניהול נתונים ב-st.session_state
