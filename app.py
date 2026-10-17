@@ -23,7 +23,6 @@ end_date = datetime(2027, 12, 1)
 current = start_date
 while current <= end_date:
     month_name = current.strftime("%B %Y")
-    # תרגום חודשים לעברית לצורך נוחות
     heb_months = {
         "January": "ינואר", "February": "פברואר", "March": "מרץ", "April": "אפריל",
         "May": "מאי", "June": "יוני", "July": "יולי", "August": "אוגוסט",
@@ -33,7 +32,6 @@ while current <= end_date:
         month_name = month_name.replace(eng, heb)
     months.append(month_name)
     
-    # מעבר לחודש הבא
     if current.month == 12:
         current = datetime(current.year + 1, 1, 1)
     else:
@@ -43,27 +41,45 @@ selected_month = st.sidebar.selectbox("בחר חודש", months)
 
 st.header(f"ניהול תקציב עבור: {selected_month}")
 
-# יצירת טבלאות נתונים לדוגמה או לשמירה
 col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### 🔵 הכנסות")
-    income_data = pd.DataFrame(
-        [{"תיאור": "משכורת", "סכום (₪)": 12000}, {"תיאור": "הכנסות נוספות", "סכום (₪)": 0}]
-    )
+    income_data = pd.DataFrame([
+        {"תיאור": "העברה מדגני", "סכום (₪)": 0},
+        {"תיאור": "פנסיה מיגדל", "סכום (₪)": 0},
+        {"תיאור": "פנסיה כלל", "סכום (₪)": 0},
+        {"תיאור": "פנסיה פסגות הראל", "סכום (₪)": 0},
+        {"תיאור": "העברת הלוואה", "סכום (₪)": 0},
+        {"תיאור": "ביטוח לאומי אדי", "סכום (₪)": 0},
+        {"תיאור": "ביטוח לאומי נרה", "סכום (₪)": 0},
+        {"תיאור": "מיוחד", "סכום (₪)": 0}
+    ])
     edited_income = st.data_editor(income_data, num_rows="dynamic", key=f"income_{selected_month}")
 
 with col2:
     st.markdown("### 🔴 הוצאות קבועות")
-    fixed_exp_data = pd.DataFrame(
-        [{"תיאור": "שכר דירה / משכנתא", "סכום (₪)": 4500}, {"תיאור": "ארנונה וחשמל", "סכום (₪)": 800}]
-    )
+    fixed_exp_data = pd.DataFrame([
+        {"תיאור": "הוצאות דיור", "סכום (₪)": 0},
+        {"תיאור": "טלפונים ניידים", "סכום (₪)": 0},
+        {"תיאור": "החזר הלוואת אשראי", "סכום (₪)": 0},
+        {"תיאור": "ביטוח מכונית", "סכום (₪)": 0},
+        {"תיאור": "ספוטיפאיי", "סכום (₪)": 0},
+        {"תיאור": "נטפליקס", "סכום (₪)": 0}
+    ])
     edited_fixed = st.data_editor(fixed_exp_data, num_rows="dynamic", key=f"fixed_{selected_month}")
 
 st.markdown("### 🟢 הוצאות משתנות")
-var_exp_data = pd.DataFrame(
-    [{"תיאור": "סופרמרקט", "סכום (₪)": 2500}, {"תיאור": "בילויים ופנאי", "סכום (₪)": 1000}]
-)
+var_exp_data = pd.DataFrame([
+    {"תיאור": "מכולת+נספרס", "סכום (₪)": 0},
+    {"תיאור": "תרופות ותוספים", "סכום (₪)": 0},
+    {"תיאור": "דלק", "סכום (₪)": 0},
+    {"תיאור": "ספר מישל", "סכום (₪)": 0},
+    {"תיאור": "גולי", "סכום (₪)": 0},
+    {"תיאור": "אראלה", "סכום (₪)": 0},
+    {"תיאור": "שונות", "סכום (₪)": 0},
+    {"תיאור": "אחר", "סכום (₪)": 0}
+])
 edited_var = st.data_editor(var_exp_data, num_rows="dynamic", key=f"var_{selected_month}")
 
 # חישובים (מספרים שלמים בלבד)
@@ -82,7 +98,6 @@ metric_col1.metric("סך הכנסות", f"₪{total_income:,}")
 metric_col2.metric("הוצאות קבועות", f"₪{total_fixed:,}")
 metric_col3.metric("הוצאות משתנות", f"₪{total_var:,}")
 
-# שורה תחתונה: הכנסות - הוצאות = העברה לחיסכון
 if transfer_to_savings >= 0:
     metric_col4.metric("העברה לחיסכון (הכנסות - הוצאות)", f"₪{transfer_to_savings:,}", delta="חיסכון חיובי")
 else:
