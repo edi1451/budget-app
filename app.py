@@ -27,10 +27,10 @@ st.markdown("""
         justify-content: flex-end !important;
     }
     
-    /* יישור שדות קלט מימין לשמאל */
-    input {
-        text-align: right !important;
+    /* יישור שדות וטבלאות מימין לשמאל */
+    .stDataFrame, div[data-testid="stDataEditor"] {
         direction: rtl !important;
+        text-align: right !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -125,60 +125,54 @@ st.header(f"ניהול תקציב עבור: {selected_month}")
 
 current_data = st.session_state.budget_data[selected_month]
 
-# פונקציה להצגת טבלה עם פסיקים לאלפים
-def render_category_inputs(category_name, items_list, key_prefix):
-    st.markdown(f"### {category_name}")
-    
-    # כותרות הטבלה (תיאור מימין, סכום משמאל)
-    hdr_col1, hdr_col2 = st.columns([3, 2])
-    with hdr_col1:
-        st.markdown("**תיאור**")
-    with hdr_col2:
-        st.markdown("**סכום (₪)**")
-        
-    updated_items = []
-    total = 0
-    
-    for idx, item in enumerate(items_list):
-        c1, c2 = st.columns([3, 2])
-        with c1:
-            desc = st.text_input(
-                label=f"desc_{key_prefix}_{idx}",
-                value=item["תיאור"],
-                key=f"desc_{key_prefix}_{selected_month}_{idx}",
-                label_visibility="collapsed"
-            )
-        with c2:
-            # פורמט עם פסיקים לאלפים (format="%d" מציג שלמים עם הפרדת אלפים)
-            val = st.number_input(
-                label=f"val_{key_prefix}_{idx}",
-                value=int(item["סכום (₪)"]),
-                step=1,
-                format="%d",
-                key=f"val_{key_prefix}_{selected_month}_{idx}",
-                label_visibility="collapsed"
-            )
-        updated_items.append({"תיאור": desc, "סכום (₪)": int(val)})
-        total += int(val)
-        
-    return updated_items, total
+# הגדרת עמודות עם פורמט מפריד אלפים מפורש
+column_configuration = {
+    "תיאור": st.column_config.TextColumn("תיאור"),
+    "סכום (₪)": st.column_config.NumberColumn("סכום (₪)", format="%,d")
+}
 
 col1, col2 = st.columns(2)
 
 with col1:
-    updated_income, total_income = render_category_inputs("🔵 הכנסות", current_data["income"], "inc")
-    current_data["income"] = updated_income
+    st.markdown("### 🔵 הכנסות")
+    df_income = pd.DataFrame(current_data["income"])
+    edited_income = st.data_editor(
+        df_income,
+        column_order=["תיאור", "סכום (₪)"],
+        column_config=column_configuration,
+        num_rows="dynamic",
+        key=f"income_{selected_month}"
+    )
+    current_data["income"] = edited_income.to_dict('records')
 
 with col2:
-    updated_fixed, total_fixed = render_category_inputs("🔴 הוצאות קבועות", current_data["fixed"], "fix")
-    current_data["fixed"] = updated_fixed
+    st.markdown("### 🔴 הוצאות קבועות")
+    df_fixed = pd.DataFrame(current_data["fixed"])
+    edited_fixed = st.data_editor(
+        df_fixed,
+        column_order=["תיאור", "סכום (₪)"],
+        column_config=column_configuration,
+        num_rows="dynamic",
+        key=f"fixed_{selected_month}"
+    )
+    current_data["fixed"] = edited_fixed.to_dict('records')
 
-st.divider()
+st.markdown("### 🟢 הוצאות משתנות")
+df_var = pd.DataFrame(current_data["var"])
+edited_var = st.data_editor(
+    df_var,
+    column_order=["תיאור", "סכום (₪)"],
+    column_config=column_configuration,
+    num_rows="dynamic",
+    key=f"var_{selected_month}"
+)
+current_data["var"] = edited_var.to_dict('records')
 
-updated_var, total_var = render_category_inputs("🟢 הוצאות משתנות", current_data["var"], "var")
-current_data["var"] = updated_var
+# חישובים
+total_income = int(edited_income["סכום (₪)"].sum()) if not edited_income.empty else 0
+total_fixed = int(edited_fixed["סכום (₪)"].sum()) if not edited_fixed.empty else 0
+total_var = int(edited_var["סכום (₪)"].sum()) if not edited_var.empty else 0
 
-# חישוב יתרה להעברה לחיסכון
 total_expenses = total_fixed + total_var
 transfer_to_savings = total_income - total_expenses
 
