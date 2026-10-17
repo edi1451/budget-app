@@ -55,6 +55,7 @@ while current <= end_date:
     else:
         current = datetime(current.year, current.month + 1, 1)
 
+# תפריט צדדי לבחירת חודש
 selected_month = st.sidebar.selectbox("בחר חודש", months)
 
 # ניהול נתונים ב-st.session_state
