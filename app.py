@@ -5,29 +5,24 @@ import json
 
 st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon="💰", layout="wide")
 
-# הגדרת כיוון כתיבה מימין לשמאל (RTL) לכל האפליקציה
+# עיצוב ויישור מימין לשמאל לכל האפליקציה
 st.markdown("""
     <style>
     html, body, [data-testid="stAppViewContainer"], .main, .stApp {
         direction: rtl !important;
         text-align: right !important;
     }
-    
     [data-testid="stSidebar"], [data-testid="stSidebar"] * {
         direction: rtl !important;
         text-align: right !important;
     }
-    
     h1, h2, h3, h4, h5, h6, p, label, div {
         text-align: right !important;
     }
-
     [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
         text-align: right !important;
         justify-content: flex-end !important;
     }
-    
-    /* יישור שדות וטבלאות מימין לשמאל */
     .stDataFrame, div[data-testid="stDataEditor"] {
         direction: rtl !important;
         text-align: right !important;
@@ -59,9 +54,7 @@ while current <= end_date:
     else:
         current = datetime(current.year, current.month + 1, 1)
 
-selected_month = st.sidebar.selectbox("בחר חודש", months)
-
-# ניהול נתונים ב-st.session_state
+# אתחול נתונים בגלובל session_state
 if 'budget_data' not in st.session_state:
     st.session_state.budget_data = {}
 
@@ -98,10 +91,13 @@ for m in months:
             ]
         }
 
+# סרגל צד - בחירת חודש וגיבויים
+selected_month = st.sidebar.selectbox("בחר חודש", months)
+
 st.sidebar.divider()
 st.sidebar.subheader("💾 גיבוי ושחזור נתונים")
 
-# כפתור גיבוי (ייצוא) בתפריט הצדדי
+# כפתור גיבוי
 backup_json = json.dumps(st.session_state.budget_data, ensure_ascii=False, indent=4)
 st.sidebar.download_button(
     label="📥 הורד גיבוי נתונים",
@@ -110,22 +106,23 @@ st.sidebar.download_button(
     mime="application/json"
 )
 
-# כפתור טעינה מגיבוי (ייבוא) בתפריט הצדדי
+# כפתור טעינת גיבוי
 uploaded_backup = st.sidebar.file_uploader("📤 טען קובץ גיבוי", type=["json"])
 if uploaded_backup is not None:
     try:
         loaded_data = json.load(uploaded_backup)
-        st.session_state.budget_data = loaded_data
-        st.sidebar.success("הגיבוי נטען בהצלחה!")
-        st.rerun()
+        if isinstance(loaded_data, dict):
+            st.session_state.budget_data = loaded_data
+            st.sidebar.success("הגיבוי נטען בהצלחה! רענן את העמוד אם צריך.")
+            st.rerun()
     except Exception as e:
         st.sidebar.error("שגיאה בטעינת הקובץ.")
 
 st.header(f"ניהול תקציב עבור: {selected_month}")
 
-current_data = st.session_state.budget_data[selected_month]
+current_month_data = st.session_state.budget_data[selected_month]
 
-# הגדרת עמודות עם פורמט מפריד אלפים מפורש
+# הגדרת עמודות לטבלאות
 column_configuration = {
     "תיאור": st.column_config.TextColumn("תיאור", required=True),
     "סכום (₪)": st.column_config.NumberColumn("סכום (₪)", format="%,d", default=0)
@@ -135,40 +132,40 @@ col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### 🔵 הכנסות")
-    df_income = pd.DataFrame(current_data["income"])
+    df_income = pd.DataFrame(current_month_data["income"])
     edited_income = st.data_editor(
         df_income,
         column_order=["תיאור", "סכום (₪)"],
         column_config=column_configuration,
         num_rows="dynamic",
-        key=f"income_editor_{selected_month}"
+        key=f"inc_{selected_month}"
     )
-    current_data["income"] = edited_income.to_dict('records')
+    current_month_data["income"] = edited_income.to_dict('records')
 
 with col2:
     st.markdown("### 🔴 הוצאות קבועות")
-    df_fixed = pd.DataFrame(current_data["fixed"])
+    df_fixed = pd.DataFrame(current_month_data["fixed"])
     edited_fixed = st.data_editor(
         df_fixed,
         column_order=["תיאור", "סכום (₪)"],
         column_config=column_configuration,
         num_rows="dynamic",
-        key=f"fixed_editor_{selected_month}"
+        key=f"fix_{selected_month}"
     )
-    current_data["fixed"] = edited_fixed.to_dict('records')
+    current_month_data["fixed"] = edited_fixed.to_dict('records')
 
 st.markdown("### 🟢 הוצאות משתנות")
-df_var = pd.DataFrame(current_data["var"])
+df_var = pd.DataFrame(current_month_data["var"])
 edited_var = st.data_editor(
     df_var,
     column_order=["תיאור", "סכום (₪)"],
     column_config=column_configuration,
     num_rows="dynamic",
-    key=f"var_editor_{selected_month}"
+    key=f"var_{selected_month}"
 )
-current_data["var"] = edited_var.to_dict('records')
+current_month_data["var"] = edited_var.to_dict('records')
 
-# חישובים
+# חישובים מאובטחים
 total_income = int(pd.to_numeric(edited_income["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_income.empty else 0
 total_fixed = int(pd.to_numeric(edited_fixed["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_fixed.empty else 0
 total_var = int(pd.to_numeric(edited_var["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_var.empty else 0
