@@ -70,7 +70,7 @@ while current <= end_date:
     else:
         current = datetime(current.year, current.month + 1, 1)
 
-# אתחול נתונים בגלובל session_state
+# אתחול נתונים בגלובל session_state (כולל לוטו בהוצאות המשתנות)
 if 'budget_data' not in st.session_state:
     st.session_state.budget_data = {}
 
@@ -99,6 +99,7 @@ for m in months:
                 {"תיאור": "מכולת+נספרס", "סכום (₪)": 0},
                 {"תיאור": "תרופות ותוספים", "סכום (₪)": 0},
                 {"תיאור": "דלק", "סכום (₪)": 0},
+                {"תיאור": "לוטו", "סכום (₪)": 0},
                 {"תיאור": "ספר מישל", "סכום (₪)": 0},
                 {"תיאור": "גולי", "סכום (₪)": 0},
                 {"תיאור": "אראלה", "סכום (₪)": 0},
@@ -129,7 +130,7 @@ st.sidebar.download_button(
     mime="application/json"
 )
 
-# כפתור טעינת גיבוי מתוקן שמעדכן את המסך מיד
+# כפתור טעינת גיבוי
 uploaded_backup = st.sidebar.file_uploader("📤 טען קובץ גיבוי", type=["json"])
 if uploaded_backup is not None:
     try:
@@ -183,7 +184,7 @@ edited_var = st.data_editor(
     df_var,
     column_order=["תיאור", "סכום (₪)"],
     column_config=column_configuration,
-    num_rows="dynamic",
+        num_rows="dynamic",
     key=f"var_{selected_month}"
 )
 current_month_data["var"] = edited_var.to_dict('records')
