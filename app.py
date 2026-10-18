@@ -70,43 +70,57 @@ while current <= end_date:
     else:
         current = datetime(current.year, current.month + 1, 1)
 
-# אתחול נתונים בגלובל session_state (כולל לוטו בהוצאות המשתנות)
-if 'budget_data' not in st.session_state:
-    st.session_state.budget_data = {}
-
+# אתחול מבנה ברירת מחדל ריק
+default_budget_structure = {}
 for m in months:
-    if m not in st.session_state.budget_data:
-        st.session_state.budget_data[m] = {
-            "income": [
-                {"תיאור": "העברה מדגני", "סכום (₪)": 0},
-                {"תיאור": "פנסיה מיגדל", "סכום (₪)": 0},
-                {"תיאור": "פנסיה כלל", "סכום (₪)": 0},
-                {"תיאור": "פנסיה פסגות הראל", "סכום (₪)": 0},
-                {"תיאור": "העברת הלוואה", "סכום (₪)": 0},
-                {"תיאור": "ביטוח לאומי אדי", "סכום (₪)": 0},
-                {"תיאור": "ביטוח לאומי נרה", "סכום (₪)": 0},
-                {"תיאור": "מיוחד", "סכום (₪)": 0}
-            ],
-            "fixed": [
-                {"תיאור": "הוצאות דיור", "סכום (₪)": 0},
-                {"תיאור": "טלפונים ניידים", "סכום (₪)": 0},
-                {"תיאור": "החזר הלוואת אשראי", "סכום (₪)": 0},
-                {"תיאור": "ביטוח מכונית", "סכום (₪)": 0},
-                {"תיאור": "ספוטיפאיי", "סכום (₪)": 0},
-                {"תיאור": "נטפליקס", "סכום (₪)": 0}
-            ],
-            "var": [
-                {"תיאור": "מכולת+נספרס", "סכום (₪)": 0},
-                {"תיאור": "תרופות ותוספים", "סכום (₪)": 0},
-                {"תיאור": "דלק", "סכום (₪)": 0},
-                {"תיאור": "לוטו", "סכום (₪)": 0},
-                {"תיאור": "ספר מישל", "סכום (₪)": 0},
-                {"תיאור": "גולי", "סכום (₪)": 0},
-                {"תיאור": "אראלה", "סכום (₪)": 0},
-                {"תיאור": "שונות", "סכום (₪)": 0},
-                {"תיאור": "אחר", "סכום (₪)": 0}
-            ]
-        }
+    default_budget_structure[m] = {
+        "income": [
+            {"תיאור": "העברה מדגני", "סכום (₪)": 0},
+            {"תיאור": "פנסיה מיגדל", "סכום (₪)": 0},
+            {"תיאור": "פנסיה כלל", "סכום (₪)": 0},
+            {"תיאור": "פנסיה פסגות הראל", "סכום (₪)": 0},
+            {"תיאור": "העברת הלוואה", "סכום (₪)": 0},
+            {"תיאור": "ביטוח לאומי אדי", "סכום (₪)": 0},
+            {"תיאור": "ביטוח לאומי נרה", "סכום (₪)": 0},
+            {"תיאור": "מיוחד", "סכום (₪)": 0}
+        ],
+        "fixed": [
+            {"תיאור": "הוצאות דיור", "סכום (₪)": 0},
+            {"תיאור": "טלפונים ניידים", "סכום (₪)": 0},
+            {"תיאור": "החזר הלוואת אשראי", "סכום (₪)": 0},
+            {"תיאור": "ביטוח מכונית", "סכום (₪)": 0},
+            {"תיאור": "ספוטיפאיי", "סכום (₪)": 0},
+            {"תיאור": "נטפליקס", "סכום (₪)": 0}
+        ],
+        "var": [
+            {"תיאור": "מכולת+נספרס", "סכום (₪)": 0},
+            {"תיאור": "תרופות ותוספים", "סכום (₪)": 0},
+            {"תיאור": "דלק", "סכום (₪)": 0},
+            {"תיאור": "לוטו", "סכום (₪)": 0},
+            {"תיאור": "ספר מישל", "סכום (₪)": 0},
+            {"תיאור": "גולי", "סכום (₪)": 0},
+            {"תיאור": "אראלה", "סכום (₪)": 0},
+            {"תיאור": "שונות", "סכום (₪)": 0},
+            {"תיאור": "אחר", "סכום (₪)": 0}
+        ]
+    }
+
+# טיפול בהעלאת קובץ גיבוי מוקדם ככל האפשר בסרגל הצד
+st.sidebar.subheader("💾 גיבוי ושחזור נתונים")
+uploaded_backup = st.sidebar.file_uploader("📤 טען קובץ גיבוי", type=["json"])
+
+if 'budget_data' not in st.session_state:
+    st.session_state.budget_data = default_budget_structure
+
+# אם הועלה קובץ גיבוי חדש, נטען אותו מיד לזיכרון ונדרוס את ברירת המחדל
+if uploaded_backup is not None:
+    try:
+        loaded_data = json.load(uploaded_backup)
+        if isinstance(loaded_data, dict):
+            st.session_state.budget_data = loaded_data
+            st.sidebar.success("הגיבוי נטען בהצלחה!")
+    except Exception as e:
+        st.sidebar.error("שגיאה בטעינת הקובץ.")
 
 selected_month = st.sidebar.selectbox("בחר חודש", months)
 
@@ -119,9 +133,8 @@ if calc_input:
     st.sidebar.success(f"תוצאה: **{result:,} ₪**")
 
 st.sidebar.divider()
-st.sidebar.subheader("💾 גיבוי ושחזור נתונים")
 
-# כפתור גיבוי
+# כפתור גיבוי (הורדה)
 backup_json = json.dumps(st.session_state.budget_data, ensure_ascii=False, indent=4)
 st.sidebar.download_button(
     label="📥 הורד גיבוי נתונים",
@@ -130,19 +143,16 @@ st.sidebar.download_button(
     mime="application/json"
 )
 
-# כפתור טעינת גיבוי
-uploaded_backup = st.sidebar.file_uploader("📤 טען קובץ גיבוי", type=["json"])
-if uploaded_backup is not None:
-    try:
-        loaded_data = json.load(uploaded_backup)
-        if isinstance(loaded_data, dict):
-            st.session_state.budget_data = loaded_data
-            st.sidebar.success("הגיבוי נטען והוחל בהצלחה!")
-            st.rerun()
-    except Exception as e:
-        st.sidebar.error("שגיאה בטעינת הקובץ.")
-
 st.header(f"ניהול תקציב עבור: {selected_month}")
+
+# וידוא שכל החודשים והקטגוריות קיימים בזיכרון
+for m in months:
+    if m not in st.session_state.budget_data:
+        st.session_state.budget_data[m] = default_budget_structure[m]
+    else:
+        for cat in ["income", "fixed", "var"]:
+            if cat not in st.session_state.budget_data[m]:
+                st.session_state.budget_data[m][cat] = default_budget_structure[m][cat]
 
 current_month_data = st.session_state.budget_data[selected_month]
 
@@ -184,7 +194,7 @@ edited_var = st.data_editor(
     df_var,
     column_order=["תיאור", "סכום (₪)"],
     column_config=column_configuration,
-        num_rows="dynamic",
+    num_rows="dynamic",
     key=f"var_{selected_month}"
 )
 current_month_data["var"] = edited_var.to_dict('records')
