@@ -109,7 +109,7 @@ for m in months:
 
 selected_month = st.sidebar.selectbox("בחר חודש", months)
 
-# מחשבון מהיר בסרגל הצד לעזרה בחישובים
+# מחשבון מהיר בסרגל הצד
 st.sidebar.divider()
 st.sidebar.subheader("🧮 מחשבון מהיר")
 calc_input = st.sidebar.text_input("הקלד תרגיל (למשל: 500+200)", "")
@@ -129,14 +129,14 @@ st.sidebar.download_button(
     mime="application/json"
 )
 
-# כפתור טעינת גיבוי
+# כפתור טעינת גיבוי מתוקן שמעדכן את המסך מיד
 uploaded_backup = st.sidebar.file_uploader("📤 טען קובץ גיבוי", type=["json"])
 if uploaded_backup is not None:
     try:
         loaded_data = json.load(uploaded_backup)
         if isinstance(loaded_data, dict):
             st.session_state.budget_data = loaded_data
-            st.sidebar.success("הגיבוי נטען בהצלחה!")
+            st.sidebar.success("הגיבוי נטען והוחל בהצלחה!")
             st.rerun()
     except Exception as e:
         st.sidebar.error("שגיאה בטעינת הקובץ.")
