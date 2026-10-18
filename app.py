@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import json
+import re
 
 st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon="💰", layout="wide")
 
@@ -31,6 +32,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("💰 ניהול הכנסות והוצאות")
+
+# פונקציה בטוחה לחישוב מתמטי
+def safe_eval_math(expr):
+    if not expr:
+        return 0
+    if isinstance(expr, (int, float)):
+        return int(expr)
+    cleaned = re.sub(r'[^0-9\+\-\*\/\.\(\)\s]', '', str(expr))
+    if not cleaned.strip():
+        return 0
+    try:
+        result = eval(cleaned, {"__builtins__": None}, {})
+        return int(round(result))
+    except Exception:
+        return 0
 
 # יצירת רשימת חודשים עד דצמבר 2027
 months = []
@@ -93,6 +109,14 @@ for m in months:
 
 selected_month = st.sidebar.selectbox("בחר חודש", months)
 
+# מחשבון מהיר בסרגל הצד לעזרה בחישובים
+st.sidebar.divider()
+st.sidebar.subheader("🧮 מחשבון מהיר")
+calc_input = st.sidebar.text_input("הקלד תרגיל (למשל: 500+200)", "")
+if calc_input:
+    result = safe_eval_math(calc_input)
+    st.sidebar.success(f"תוצאה: **{result:,} ₪**")
+
 st.sidebar.divider()
 st.sidebar.subheader("💾 גיבוי ושחזור נתונים")
 
@@ -121,7 +145,7 @@ st.header(f"ניהול תקציב עבור: {selected_month}")
 
 current_month_data = st.session_state.budget_data[selected_month]
 
-# הגדרת עמודות יציבה ללא שגיאות
+# הגדרת עמודות
 column_configuration = {
     "תיאור": st.column_config.TextColumn("תיאור", required=True),
     "סכום (₪)": st.column_config.NumberColumn("סכום (₪)", format="%,d", default=0)
