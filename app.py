@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 import json
-import re
 
 st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon="💰", layout="wide")
 
@@ -13,22 +12,17 @@ st.markdown("""
         direction: rtl !important;
         text-align: right !important;
     }
-    
     [data-testid="stSidebar"], [data-testid="stSidebar"] * {
         direction: rtl !important;
         text-align: right !important;
     }
-    
     h1, h2, h3, h4, h5, h6, p, label, div {
         text-align: right !important;
     }
-
     [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
         text-align: right !important;
         justify-content: flex-end !important;
     }
-    
-    /* יישור שדות וטבלאות מימין לשמאל */
     .stDataFrame, div[data-testid="stDataEditor"] {
         direction: rtl !important;
         text-align: right !important;
@@ -37,34 +31,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("💰 ניהול הכנסות והוצאות")
-
-# פונקציה לחישוב ביטוי מתמטי והחזרת התוצאה הסופית
-def safe_eval_math(expr):
-    if not expr:
-        return 0
-    if isinstance(expr, (int, float)):
-        return int(expr)
-    
-    # ניקוי תווים שאינם מספרים או אופרטורים (+, -, *, /)
-    cleaned = re.sub(r'[^0-9\+\-\*\/\.\(\)\s]', '', str(expr))
-    if not cleaned.strip():
-        return 0
-    try:
-        result = eval(cleaned, {"__builtins__": None}, {})
-        return int(round(result))
-    except Exception:
-        return 0
-
-# פונקציה למעבר על רשימת הפריטים וחישוב מחדש של ערכי התאים
-def evaluate_and_format_items(items):
-    formatted = []
-    for item in items:
-        val = safe_eval_math(item.get("סכום (₪)", 0))
-        formatted.append({
-            "תיאור": item.get("תיאור", ""),
-            "סכום (₪)": val
-        })
-    return formatted
 
 # יצירת רשימת חודשים עד דצמבר 2027
 months = []
@@ -88,7 +54,7 @@ while current <= end_date:
     else:
         current = datetime(current.year, current.month + 1, 1)
 
-# אתחול נתונים ב-session_state
+# אתחול נתונים בגלובל session_state
 if 'budget_data' not in st.session_state:
     st.session_state.budget_data = {}
 
@@ -155,10 +121,10 @@ st.header(f"ניהול תקציב עבור: {selected_month}")
 
 current_month_data = st.session_state.budget_data[selected_month]
 
-# הגדרת עמודות - תיאור מימין, סכום משמאל
+# הגדרת עמודות יציבה ללא שגיאות
 column_configuration = {
     "תיאור": st.column_config.TextColumn("תיאור", required=True),
-    "סכום (₪)": st.column_config.TextColumn("סכום (₪)", help="אפשר לרשום מספר או תרגיל כמו: 500+200")
+    "סכום (₪)": st.column_config.NumberColumn("סכום (₪)", format="%,d", default=0)
 }
 
 col1, col2 = st.columns(2)
@@ -173,7 +139,7 @@ with col1:
         num_rows="dynamic",
         key=f"inc_{selected_month}"
     )
-    current_month_data["income"] = evaluate_and_format_items(edited_income.to_dict('records'))
+    current_month_data["income"] = edited_income.to_dict('records')
 
 with col2:
     st.markdown("### 🔴 הוצאות קבועות")
@@ -185,7 +151,7 @@ with col2:
         num_rows="dynamic",
         key=f"fix_{selected_month}"
     )
-    current_month_data["fixed"] = evaluate_and_format_items(edited_fixed.to_dict('records'))
+    current_month_data["fixed"] = edited_fixed.to_dict('records')
 
 st.markdown("### 🟢 הוצאות משתנות")
 df_var = pd.DataFrame(current_month_data["var"])
@@ -196,12 +162,12 @@ edited_var = st.data_editor(
     num_rows="dynamic",
     key=f"var_{selected_month}"
 )
-current_month_data["var"] = evaluate_and_format_items(edited_var.to_dict('records'))
+current_month_data["var"] = edited_var.to_dict('records')
 
-# חישוב הסכומים הסופיים
-total_income = sum(item["סכום (₪)"] for item in current_month_data["income"])
-total_fixed = sum(item["סכום (₪)"] for item in current_month_data["fixed"])
-total_var = sum(item["סכום (₪)"] for item in current_month_data["var"])
+# חישובים מדויקים
+total_income = int(pd.to_numeric(edited_income["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_income.empty else 0
+total_fixed = int(pd.to_numeric(edited_fixed["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_fixed.empty else 0
+total_var = int(pd.to_numeric(edited_var["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_var.empty else 0
 
 total_expenses = total_fixed + total_var
 transfer_to_savings = total_income - total_expenses
