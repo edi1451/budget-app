@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 import json
 import re
+import altair as alt
 
 st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon="💰", layout="wide")
 
@@ -217,13 +218,24 @@ if transfer_to_savings >= 0:
 else:
     metric_col4.metric("גירעון / חיסכון שלילי", f"₪{transfer_to_savings:,}", delta="חריגה", delta_color="inverse")
 
-# הצגת תרשים עמודות נקי ויציב
+# תרשים עמודות משולב: הכנסות מול סך הוצאות מחולקות לצבעים
 st.markdown("---")
-st.subheader("📈 התפלגות פיננסית חודשית")
+st.subheader("📈 השוואת הכנסות מול הוצאות")
 
-chart_data = pd.DataFrame({
-    "קטגוריה": ["הכנסות", "הוצאות קבועות", "הוצאות משתנות"],
-    "סכום (₪)": [total_income, total_fixed, total_var]
-}).set_index("קטגוריה")
+chart_data = pd.DataFrame([
+    {"עמודה": "הכנסות", "סוג": "הכנסות", "סכום (₪)": total_income},
+    {"עמודה": "הוצאות", "סוג": "הוצאות קבועות", "סכום (₪)": total_fixed},
+    {"עמודה": "הוצאות", "סוג": "הוצאות משתנות", "סכום (₪)": total_var}
+])
 
-st.bar_chart(chart_data)
+chart = alt.Chart(chart_data).mark_bar().encode(
+    x=alt.X('עמודה:N', sort=["הכנסות", "הוצאות"], title=''),
+    y=alt.Y('סכום (₪):Q', title='סכום בשקלים'),
+    color=alt.Color('סוג:N', scale=alt.Scale(
+        domain=["הכנסות", "הוצאות קבועות", "הוצאות משתנות"],
+        range=["#2980b9", "#c0392b", "#27ae60"]  # כחול, אדום, ירוק
+    ), title="מקרא"),
+    order=alt.Order('סוג:N', sort='ascending')
+).properties(height=380)
+
+st.altair_chart(chart, use_container_width=True)
