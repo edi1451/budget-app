@@ -217,7 +217,7 @@ if transfer_to_savings >= 0:
 else:
     metric_col4.metric("גירעון / חיסכון שלילי", f"₪{transfer_to_savings:,}", delta="חריגה", delta_color="inverse")
 
-# הוספת תרשים גרפי השוואתי
+# הצגת תרשים עמודות נקי ויציב
 st.markdown("---")
 st.subheader("📈 התפלגות פיננסית חודשית")
 
@@ -226,5 +226,4 @@ chart_data = pd.DataFrame({
     "סכום (₪)": [total_income, total_fixed, total_var]
 }).set_index("קטגוריה")
 
-# מציג עמודות צבעוניות לפי בקשתך (כחול, אדום, ירוק)
-st.bar_chart(chart_data, color=["#2980b9", "#c0392b", "#27ae60"])
+st.bar_chart(chart_data)
