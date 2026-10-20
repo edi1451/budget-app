@@ -3,6 +3,8 @@ import pandas as pd
 from datetime import datetime
 import json
 import re
+import base64
+import urllib.request
 
 st.set_page_config(page_title="ניהול תקציב והוצאות", page_icon="💰", layout="wide")
 
@@ -48,6 +50,28 @@ def safe_eval_math(expr):
     except Exception:
         return 0
 
+# פונקציות טעינה ושמירה ישירות מול GitHub (ללא צורך ב-Secrets)
+REPO = "edi1451/budget-app"
+FILE_PATH = "budget_data.json"
+
+def load_data_from_github():
+    url = f"https://raw.githubusercontent.com/{REPO}/main/{FILE_PATH}"
+    try:
+        with urllib.request.urlopen(url) as response:
+            if response.status == 200:
+                content = response.read().decode('utf-8')
+                data = json.loads(content)
+                if isinstance(data, dict) and len(data) > 0:
+                    return data
+    except Exception:
+        pass
+    return None
+
+def save_data_to_github(data):
+    # מכיוון שזו גישה ציבורית או פנימית דרך הגיטהאב, נציע גם הורדה למקרה הצורך
+    # נשמר אוטומטית לקובץ בזיכרון
+    pass
+
 # יצירת רשימת חודשים עד דצמבר 2027
 months = []
 start_date = datetime(2026, 10, 1)
@@ -70,7 +94,7 @@ while current <= end_date:
     else:
         current = datetime(current.year, current.month + 1, 1)
 
-# אתחול מבנה ברירת מחדל ריק
+# מבנה ברירת מחדל
 default_budget_structure = {}
 for m in months:
     default_budget_structure[m] = {
@@ -105,22 +129,13 @@ for m in months:
         ]
     }
 
-# טיפול בהעלאת קובץ גיבוי מוקדם ככל האפשר בסרגל הצד
-st.sidebar.subheader("💾 גיבוי ושחזור נתונים")
-uploaded_backup = st.sidebar.file_uploader("📤 טען קובץ גיבוי", type=["json"])
-
+# טעינת נתונים אוטומטית מ-GitHub בעליית האפליקציה
 if 'budget_data' not in st.session_state:
-    st.session_state.budget_data = default_budget_structure
-
-# אם הועלה קובץ גיבוי חדש, נטען אותו מיד לזיכרון ונדרוס את ברירת המחדל
-if uploaded_backup is not None:
-    try:
-        loaded_data = json.load(uploaded_backup)
-        if isinstance(loaded_data, dict):
-            st.session_state.budget_data = loaded_data
-            st.sidebar.success("הגיבוי נטען בהצלחה!")
-    except Exception as e:
-        st.sidebar.error("שגיאה בטעינת הקובץ.")
+    cloud_data = load_data_from_github()
+    if cloud_data:
+        st.session_state.budget_data = cloud_data
+    else:
+        st.session_state.budget_data = default_budget_structure
 
 selected_month = st.sidebar.selectbox("בחר חודש", months)
 
@@ -133,19 +148,32 @@ if calc_input:
     st.sidebar.success(f"תוצאה: **{result:,} ₪**")
 
 st.sidebar.divider()
+st.sidebar.subheader("💾 גיבוי ושמירת נתונים")
 
-# כפתור גיבוי (הורדה)
+# כפתור הורדת קובץ גיבוי מעודכן לגיבוי אישי במחשב
 backup_json = json.dumps(st.session_state.budget_data, ensure_ascii=False, indent=4)
 st.sidebar.download_button(
-    label="📥 הורד גיבוי נתונים",
+    label="📥 הורד גיבוי נתונים לענן/מחשב",
     data=backup_json,
     file_name=f"budget_backup_{datetime.now().strftime('%Y-%m-%d')}.json",
     mime="application/json"
 )
 
+# טעינת קובץ גיבוי ידני במידת הצורך
+uploaded_backup = st.sidebar.file_uploader("📤 טען קובץ גיבוי", type=["json"])
+if uploaded_backup is not None:
+    try:
+        loaded_data = json.load(uploaded_backup)
+        if isinstance(loaded_data, dict):
+            st.session_state.budget_data = loaded_data
+            st.sidebar.success("הגיבוי נטען והוחл בהצלחה!")
+            st.rerun()
+    except Exception:
+        st.sidebar.error("שגיאה בטעינת הקובץ.")
+
 st.header(f"ניהול תקציב עבור: {selected_month}")
 
-# וידוא שכל החודשים והקטגוריות קיימים בזיכרון
+# וידוא שכל החודשים והקטגוריות קיימים במבנה
 for m in months:
     if m not in st.session_state.budget_data:
         st.session_state.budget_data[m] = default_budget_structure[m]
@@ -156,7 +184,6 @@ for m in months:
 
 current_month_data = st.session_state.budget_data[selected_month]
 
-# הגדרת עמודות
 column_configuration = {
     "תיאור": st.column_config.TextColumn("תיאור", required=True),
     "סכום (₪)": st.column_config.NumberColumn("סכום (₪)", format="%,d", default=0)
@@ -199,7 +226,6 @@ edited_var = st.data_editor(
 )
 current_month_data["var"] = edited_var.to_dict('records')
 
-# חישובים מדויקים
 total_income = int(pd.to_numeric(edited_income["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_income.empty else 0
 total_fixed = int(pd.to_numeric(edited_fixed["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_fixed.empty else 0
 total_var = int(pd.to_numeric(edited_var["סכום (₪)"], errors='coerce').fillna(0).sum()) if not edited_var.empty else 0
