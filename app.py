@@ -106,19 +106,26 @@ for m in months:
         ]
     }
 
+if 'budget_data' not in st.session_state:
+    st.session_state.budget_data = default_budget_structure
+
+if 'backup_version' not in st.session_state:
+    st.session_state.backup_version = 0
+
 # טיפול בהעלאת קובץ גיבוי מוקדם בסרגל הצד
 st.sidebar.subheader("💾 גיבוי ושחזור נתונים")
 uploaded_backup = st.sidebar.file_uploader("📤 טען קובץ גיבוי", type=["json"])
-
-if 'budget_data' not in st.session_state:
-    st.session_state.budget_data = default_budget_structure
 
 if uploaded_backup is not None:
     try:
         loaded_data = json.load(uploaded_backup)
         if isinstance(loaded_data, dict):
-            st.session_state.budget_data = loaded_data
-            st.sidebar.success("הגיבוי נטען בהצלחה!")
+            # בדיקה אם הקובץ שונה ממה שיש בזיכרון
+            if loaded_data != st.session_state.budget_data:
+                st.session_state.budget_data = loaded_data
+                st.session_state.backup_version += 1
+                st.sidebar.success("הגיבוי נטען בהצלחה!")
+                st.rerun()
     except Exception:
         st.sidebar.error("שגיאה בטעינת הקובץ.")
 
@@ -161,6 +168,8 @@ column_configuration = {
     "סכום (₪)": st.column_config.NumberColumn("סכום (₪)", format="%,d", default=0)
 }
 
+ver = st.session_state.backup_version
+
 col1, col2 = st.columns(2)
 
 with col1:
@@ -171,7 +180,7 @@ with col1:
         column_order=["תיאור", "סכום (₪)"],
         column_config=column_configuration,
         num_rows="dynamic",
-        key=f"inc_{selected_month}"
+        key=f"inc_{selected_month}_v{ver}"
     )
     current_month_data["income"] = edited_income.to_dict('records')
 
@@ -183,7 +192,7 @@ with col2:
         column_order=["תיאור", "סכום (₪)"],
         column_config=column_configuration,
         num_rows="dynamic",
-        key=f"fix_{selected_month}"
+        key=f"fix_{selected_month}_v{ver}"
     )
     current_month_data["fixed"] = edited_fixed.to_dict('records')
 
@@ -194,7 +203,7 @@ edited_var = st.data_editor(
     column_order=["תיאור", "סכום (₪)"],
     column_config=column_configuration,
     num_rows="dynamic",
-    key=f"var_{selected_month}"
+    key=f"var_{selected_month}_v{ver}"
 )
 current_month_data["var"] = edited_var.to_dict('records')
 
