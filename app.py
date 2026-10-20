@@ -218,24 +218,45 @@ if transfer_to_savings >= 0:
 else:
     metric_col4.metric("גירעון / חיסכון שלילי", f"₪{transfer_to_savings:,}", delta="חריגה", delta_color="inverse")
 
-# תרשים עמודות משולב: הכנסות מול סך הוצאות מחולקות לצבעים
+# תרשים עמודות משולב עם מקרא ברור בעברית וסכומים על העמודות
 st.markdown("---")
 st.subheader("📈 השוואת הכנסות מול הוצאות")
 
+# מקרא מפורט בעברית בתצוגת כרטיסיות נקיות
+leg_col1, leg_col2, leg_col3 = st.columns(3)
+leg_col1.markdown("<h4 style='color: #2980b9; margin: 0;'>🟦 הכנסות: ₪{:,}</h4>".format(total_income), unsafe_allow_html=True)
+leg_col2.markdown("<h4 style='color: #c0392b; margin: 0;'>🟥 הוצאות קבועות: ₪{:,}</h4>".format(total_fixed), unsafe_allow_html=True)
+leg_col3.markdown("<h4 style='color: #27ae60; margin: 0;'>🟩 הוצאות משתנות: ₪{:,}</h4>".format(total_var), unsafe_allow_html=True)
+
+st.write("")
+
 chart_data = pd.DataFrame([
-    {"עמודה": "הכנסות", "סוג": "הכנסות", "סכום (₪)": total_income},
-    {"עמודה": "הוצאות", "סוג": "הוצאות קבועות", "סכום (₪)": total_fixed},
-    {"עמודה": "הוצאות", "סוג": "הוצאות משתנות", "סכום (₪)": total_var}
+    {"עמודה": "הכנסות", "סוג": "הכנסות", "סכום (₪)": total_income, "תווית": f"₪{total_income:,}"},
+    {"עמודה": "הוצאות", "סוג": "הוצאות קבועות", "סכום (₪)": total_fixed, "תווית": f"₪{total_fixed:,}"},
+    {"עמודה": "הוצאות", "סוג": "הוצאות משתנות", "סכום (₪)": total_var, "תווית": f"₪{total_var:,}"}
 ])
 
-chart = alt.Chart(chart_data).mark_bar().encode(
+bars = alt.Chart(chart_data).mark_bar().encode(
     x=alt.X('עמודה:N', sort=["הכנסות", "הוצאות"], title=''),
-    y=alt.Y('סכום (₪):Q', title='סכום בשקלים'),
+    y=alt.Y('סכום (₪):Q', title='סכום (₪)'),
     color=alt.Color('סוג:N', scale=alt.Scale(
         domain=["הכנסות", "הוצאות קבועות", "הוצאות משתנות"],
-        range=["#2980b9", "#c0392b", "#27ae60"]  # כחול, אדום, ירוק
-    ), title="מקרא"),
+        range=["#2980b9", "#c0392b", "#27ae60"]
+    ), legend=None),
     order=alt.Order('סוג:N', sort='ascending')
-).properties(height=380)
+)
+
+text = alt.Chart(chart_data).mark_text(
+    dy=-10,
+    color='black',
+    fontSize=14,
+    fontWeight='bold'
+).encode(
+    x=alt.X('עמודה:N', sort=["הכנסות", "הוצאות"]),
+    y=alt.Y('sum(סכום (₪)):Q'),
+    text=alt.value(f"סה\"כ הוצאות: ₪{total_expenses:,}")
+)
+
+chart = (bars).properties(height=380)
 
 st.altair_chart(chart, use_container_width=True)
